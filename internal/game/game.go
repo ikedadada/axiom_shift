@@ -6,6 +6,7 @@ import (
 	"axiom_shift/internal/ui"
 	"axiom_shift/internal/usecase"
 	"fmt"
+	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -18,9 +19,10 @@ type Game struct {
 	rule        *logic.RuleMatrix
 	ui          UIInterface
 	inputValue  float64
-	phase       string // "input", "confirm", "battle", "end"
-	lastWin     bool   // 最終戦の勝敗記録
-	seed        int64  // ルール生成用シード値
+	phase       string   // "input", "confirm", "battle", "end"
+	lastWin     bool     // 最終戦の勝敗記録
+	seed        int64    // ルール生成用シード値
+	lastResult  *float64 // 直近バトルの結果値（-1.0〜+1.0想定）
 }
 
 type UIInterface interface {
@@ -82,6 +84,7 @@ func (g *Game) Update() error {
 		g.player.GrowthRate = 0.5 + 0.1*float64(g.battleCount)
 		service := usecase.NewBattleService(g.player, g.enemy, logicToDomainRuleMatrix(g.rule))
 		result, win := service.ExecuteBattle(g.inputValue)
+		g.lastResult = &result // 直近のバトル結果を保存
 		g.battleCount++
 		log := fmt.Sprintf("Battle %d: Input=%s Result=%s Win/Lose=%s", g.battleCount, formatFloat(g.inputValue), formatFloat(result), winLoseStrEN(win))
 		g.ui.AddBattleLog(log)
@@ -157,6 +160,49 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	// 画面右下にSeed値を表示
 	seedMsg := fmt.Sprintf("Seed: %d", g.seed)
 	ui.DrawText(screen, seedMsg, 540, 460)
+	// 画面中央下にResultバーを描画
+	if g.lastResult != nil {
+		drawResultBar(screen, *g.lastResult)
+	}
+}
+
+// ebitenutil.DrawRectの代替
+func drawRect(screen *ebiten.Image, x, y, w, h float64, clr color.Color) {
+	img := ebiten.NewImage(int(w), int(h))
+	img.Fill(clr)
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(x, y)
+	screen.DrawImage(img, op)
+}
+
+// 結果値をバーでビジュアライズ
+func drawResultBar(screen *ebiten.Image, result float64) {
+	barY := 410
+	barX := 120
+	barW := 400
+	barH := 18
+	// 背景バー
+	drawRect(screen, float64(barX), float64(barY), float64(barW), float64(barH), color.RGBA{80, 80, 80, 255})
+	// 中央線
+	drawRect(screen, float64(barX+barW/2-1), float64(barY), 2, float64(barH), color.White)
+	// 結果バー
+	clamped := result
+	if clamped < -1 {
+		clamped = -1
+	}
+	if clamped > 1 {
+		clamped = 1
+	}
+	barLen := int(float64(barW/2) * clamped)
+	if barLen > 0 {
+		// プレイヤー有利（右側・緑）
+		drawRect(screen, float64(barX+barW/2), float64(barY), float64(barLen), float64(barH), color.RGBA{80, 200, 80, 255})
+	} else if barLen < 0 {
+		// 敵有利（左側・赤）
+		drawRect(screen, float64(barX+barW/2+barLen), float64(barY), float64(-barLen), float64(barH), color.RGBA{200, 80, 80, 255})
+	}
+	// ラベル
+	ui.DrawText(screen, "Result", barX-70, barY+2)
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
@@ -175,6 +221,7 @@ func (g *Game) Reset() {
 	g.ui.ClearBattleLog()
 	g.phase = "input"
 	g.lastWin = false
+	g.lastResult = nil
 }
 
 // winLoseStrEN: 英語表記の勝敗判定は今後も使うため残す
