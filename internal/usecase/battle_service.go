@@ -34,16 +34,9 @@ func (b *BattleService) DoBattleTurn(input float64, battleCount int) (float64, b
 	result, win := b.ExecuteBattle(input)
 	// プレイヤーが勝った場合のみ敵が成長
 	if win {
-		ruleMatrix := b.Rules.Matrix
-		m := domain.NewMatrix(len(ruleMatrix), len(ruleMatrix[0]))
-		for i := range ruleMatrix {
-			for j := range ruleMatrix[i] {
-				m.Data[i][j] = ruleMatrix[i][j]
-			}
-		}
 		maxTry := 10
 		for i := 0; i < maxTry; i++ {
-			b.Enemy.Grow(input, m)
+			b.Enemy.Grow(input, b.Rules.Matrix)
 			// 成長後に再度バトル判定
 			_, winTmp := b.ExecuteBattle(input)
 			if winTmp {
@@ -59,17 +52,11 @@ func (b *BattleService) DoBattleTurn(input float64, battleCount int) (float64, b
 func (b *BattleService) calculateBattleOutcome() float64 {
 	playerMatrix := b.Player.GetMatrix()
 	enemyMatrix := b.Enemy.GetMatrix()
-	ruleMatrix := b.Rules.Matrix // [][]float64
+	ruleMatrix := b.Rules.Matrix.Data // [][]float64
 	if playerMatrix == nil || enemyMatrix == nil || ruleMatrix == nil || len(ruleMatrix) == 0 || len(ruleMatrix[0]) == 0 {
 		return 0
 	}
-	m := domain.NewMatrix(len(ruleMatrix), len(ruleMatrix[0]))
-	for i := range ruleMatrix {
-		for j := range ruleMatrix[i] {
-			m.Data[i][j] = ruleMatrix[i][j]
-		}
-	}
-	outcome := playerMatrix.Multiply(m)
+	outcome := playerMatrix.Multiply(b.Rules.Matrix)
 	if outcome == nil {
 		return 0
 	}

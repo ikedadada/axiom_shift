@@ -9,7 +9,7 @@ import (
 )
 
 // FindValidSeed: battleMax 回のバトルで双方に勝ちパターンが存在する seed / rule / playerPath / enemyPath を返す
-func FindValidSeed(battleMax int, initialSeed int64, player *domain.Player, enemy *domain.Enemy) (int64, *logic.RuleMatrix, []int, []int, error) {
+func FindValidSeed(battleMax int, initialSeed int64, player *domain.Player, enemy *domain.Enemy) (int64, []int, []int, error) {
 	if battleMax <= 0 || player == nil || enemy == nil {
 		panic("Invalid parameters: battleMax must be > 0, player and enemy must not be nil")
 	}
@@ -47,12 +47,12 @@ func FindValidSeed(battleMax int, initialSeed int64, player *domain.Player, enem
 	}
 
 	// サンプリングによる勝率推定
-	simulateSamples := func(rule *logic.RuleMatrix, samples int) (int, int) {
+	simulateSamples := func(rule *domain.RuleMatrix, samples int) (int, int) {
 		playerWins := 0
 		for s := 0; s < samples; s++ {
 			player.Reset()
 			enemy.Reset()
-			service := NewBattleService(player, enemy, &domain.RuleMatrix{Matrix: rule.GetMatrix()})
+			service := NewBattleService(player, enemy, rule)
 
 			inputs := make([]int, battleMax)
 			for i := range inputs {
@@ -71,7 +71,7 @@ func FindValidSeed(battleMax int, initialSeed int64, player *domain.Player, enem
 	}
 
 	// ProofPhase: DFS＋ビーム幅＋分岐シャッフルで多様な勝ちパスを探索
-	proofPhase := func(rule *logic.RuleMatrix) (bool, []int, []int) {
+	proofPhase := func(rule *domain.RuleMatrix) (bool, []int, []int) {
 		type node struct {
 			depth  int
 			inputs []int
@@ -94,7 +94,7 @@ func FindValidSeed(battleMax int, initialSeed int64, player *domain.Player, enem
 			if n.depth == battleMax {
 				player.Reset()
 				enemy.Reset()
-				service := NewBattleService(player, enemy, &domain.RuleMatrix{Matrix: rule.GetMatrix()})
+				service := NewBattleService(player, enemy, rule)
 
 				var win bool
 				for battle := 0; battle < battleMax; battle++ {
@@ -149,7 +149,7 @@ func FindValidSeed(battleMax int, initialSeed int64, player *domain.Player, enem
 	var debugSearchSeedCount int
 	for try := 0; try < maxTries; try++ {
 		seedCandidate := logic.NewSeedManager().GetSeed()
-		rule := logic.NewRuleMatrix(seedCandidate, size)
+		rule := domain.NewRuleMatrix(seedCandidate, size)
 
 		// RoughFilter
 		playerWins, n := simulateSamples(rule, roughSamples)
@@ -174,7 +174,7 @@ func FindValidSeed(battleMax int, initialSeed int64, player *domain.Player, enem
 
 		if ok {
 			fmt.Printf("Found valid seed: %d with playerPath=%v, enemyPath=%v\n", seedCandidate, playerPath, enemyPath)
-			return seedCandidate, rule, playerPath, enemyPath, nil
+			return seedCandidate, playerPath, enemyPath, nil
 		}
 
 		// 進行が遅いときのデバッグ用出力（任意）
@@ -182,5 +182,5 @@ func FindValidSeed(battleMax int, initialSeed int64, player *domain.Player, enem
 			fmt.Printf("Tried %d seeds so far, still searching...\n", debugSearchSeedCount)
 		}
 	}
-	return 0, nil, nil, nil, fmt.Errorf("valid seed not found after %d tries", maxTries)
+	return 0, nil, nil, fmt.Errorf("valid seed not found after %d tries", maxTries)
 }

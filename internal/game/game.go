@@ -2,7 +2,6 @@ package game
 
 import (
 	"axiom_shift/internal/domain"
-	"axiom_shift/internal/logic"
 	"axiom_shift/internal/ui"
 	"axiom_shift/internal/usecase"
 	"fmt"
@@ -17,7 +16,7 @@ type Game struct {
 	battleMax   int
 	player      *domain.Player
 	enemy       *domain.Enemy
-	rule        *logic.RuleMatrix
+	rule        *domain.RuleMatrix
 	ui          UIInterface
 	inputValue  int
 	phase       string   // "input", "confirm", "battle", "end"
@@ -32,28 +31,24 @@ type UIInterface interface {
 	Draw(screen *ebiten.Image)
 }
 
-func logicToDomainRuleMatrix(lr *logic.RuleMatrix) *domain.RuleMatrix {
-	mat := lr.GetMatrix()
-	return &domain.RuleMatrix{Matrix: mat}
-}
-
 func NewGame() *Game {
-	pm := domain.NewMatrix(3, 3)
-	for i := 0; i < 3; i++ {
-		pm.Data[i][i] = 2.0
-	}
-	player := domain.NewPlayer(pm, 0.5)
-	enemyMat := domain.NewMatrix(3, 3)
-	for i := 0; i < 3; i++ {
-		enemyMat.Data[i][2-i] = 2.0
-	}
-	enemy := domain.NewEnemy("Enemy", enemyMat, 0.5)
+	player := domain.NewPlayer(domain.NewMatrix([][]float64{
+		{2.0, 0.0, 0.0},
+		{0.0, 2.0, 0.0},
+		{0.0, 0.0, 2.0},
+	}), 0.5)
+	enemy := domain.NewEnemy("Enemy", domain.NewMatrix([][]float64{
+		{0.0, 0.0, 2.0},
+		{0.0, 2.0, 0.0},
+		{2.0, 0.0, 0.0},
+	}), 0.5)
 	battleMax := 10
 	initialSeed := time.Now().UnixNano()
-	seed, rule, playerPath, enemyPath, err := usecase.FindValidSeed(battleMax, initialSeed, player, enemy)
+	seed, playerPath, enemyPath, err := usecase.FindValidSeed(battleMax, initialSeed, player, enemy)
 	if err != nil {
 		panic(fmt.Sprintf("Seed search failed: %v", err))
 	}
+	rule := domain.NewRuleMatrix(seed, player.MatrixState.Rows)
 	player.Reset()
 	enemy.Reset()
 	_ = playerPath
@@ -93,7 +88,7 @@ func (g *Game) Update() error {
 			g.phase = "input"
 		}
 	case "battle":
-		service := usecase.NewBattleService(g.player, g.enemy, logicToDomainRuleMatrix(g.rule))
+		service := usecase.NewBattleService(g.player, g.enemy, g.rule)
 		result, win := service.DoBattleTurn(float64(g.inputValue)/9, g.battleCount)
 		g.lastResult = &result
 		g.battleCount++
@@ -242,7 +237,7 @@ func (g *Game) Reset() {
 	g.battleCount = 0
 	g.player.Reset()
 	g.enemy.Reset()
-	g.rule = logic.NewRuleMatrix(g.seed, 3) // seedを再利用
+	g.rule = domain.NewRuleMatrix(g.seed, g.player.MatrixState.Rows) // seedを再利用
 	g.ui.ClearBattleLog()
 	g.phase = "input"
 	g.lastWin = false

@@ -1,6 +1,7 @@
 package logic
 
 import (
+	"axiom_shift/internal/domain"
 	"testing"
 )
 
@@ -18,15 +19,15 @@ func TestSeedDeterminism(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rule1 := NewRuleMatrix(tt.seed1, tt.size)
-			rule2 := NewRuleMatrix(tt.seed2, tt.size)
+			rule1 := domain.NewRuleMatrix(tt.seed1, tt.size)
+			rule2 := domain.NewRuleMatrix(tt.seed2, tt.size)
 			if tt.size == 0 {
 				return // always equal for zero size
 			}
 			equal := true
 			for i := 0; i < tt.size; i++ {
 				for j := 0; j < tt.size; j++ {
-					if rule1.matrix[i][j] != rule2.matrix[i][j] {
+					if rule1.Matrix.Data[i][j] != rule2.Matrix.Data[i][j] {
 						equal = false
 					}
 				}

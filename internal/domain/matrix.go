@@ -8,10 +8,11 @@ type Matrix struct {
 }
 
 // NewMatrix creates a new Matrix with the given number of rows and columns.
-func NewMatrix(rows, cols int) *Matrix {
-	data := make([][]float64, rows)
-	for i := range data {
-		data[i] = make([]float64, cols)
+func NewMatrix(data [][]float64) *Matrix {
+	rows := len(data)
+	cols := 0
+	if rows > 0 {
+		cols = len(data[0])
 	}
 	return &Matrix{Data: data, Rows: rows, Cols: cols}
 }
@@ -24,7 +25,11 @@ func (m *Matrix) Subtract(other *Matrix) *Matrix {
 	if m.Rows != other.Rows || m.Cols != other.Cols {
 		return nil
 	}
-	result := NewMatrix(m.Rows, m.Cols)
+	var data = make([][]float64, m.Rows)
+	for i := range data {
+		data[i] = make([]float64, m.Cols)
+	}
+	result := NewMatrix(data)
 	for i := 0; i < m.Rows; i++ {
 		for j := 0; j < m.Cols; j++ {
 			result.Data[i][j] = m.Data[i][j] - other.Data[i][j]
@@ -41,7 +46,11 @@ func (m *Matrix) Multiply(other *Matrix) *Matrix {
 	if m.Cols != other.Rows {
 		return nil
 	}
-	result := NewMatrix(m.Rows, other.Cols)
+	var data = make([][]float64, m.Rows)
+	for i := range data {
+		data[i] = make([]float64, m.Cols)
+	}
+	result := NewMatrix(data)
 	for i := 0; i < m.Rows; i++ {
 		for j := 0; j < other.Cols; j++ {
 			for k := 0; k < m.Cols; k++ {

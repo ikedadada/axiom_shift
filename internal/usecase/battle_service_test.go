@@ -2,44 +2,46 @@ package usecase
 
 import (
 	"axiom_shift/internal/domain"
-	"axiom_shift/internal/logic"
 	"testing"
 )
-
-func logicToDomainRuleMatrix(lr *logic.RuleMatrix) *domain.RuleMatrix {
-	mat := lr.GetMatrix()
-	return &domain.RuleMatrix{Matrix: mat}
-}
 
 func TestBattleService_ExecuteBattle(t *testing.T) {
 	tests := []struct {
 		name      string
-		playerMat *domain.Matrix
+		playerMat [][]float64
 		playerGr  float64
-		enemyMat  *domain.Matrix
+		enemyMat  [][]float64
 		enemyGr   float64
 		ruleSeed  int64
 		ruleSize  int
 		input     float64
+		wantWin   bool
 	}{
-		{"basic win", domain.NewMatrix(2, 2), 1.0, domain.NewMatrix(2, 2), 1.0, 1, 2, 1.0},
-		{"basic lose", domain.NewMatrix(2, 2), 0.1, domain.NewMatrix(2, 2), 1.0, 1, 2, 0.0},
-		{"zero matrix", domain.NewMatrix(0, 0), 1.0, domain.NewMatrix(0, 0), 1.0, 1, 0, 0.0},
-		{"input negative", domain.NewMatrix(2, 2), 1.0, domain.NewMatrix(2, 2), 1.0, 1, 2, -1.0},
-		{"input >1", domain.NewMatrix(2, 2), 1.0, domain.NewMatrix(2, 2), 1.0, 1, 2, 2.0},
+		{"basic win", [][]float64{{2, 2}, {2, 2}}, 1.0, [][]float64{{0, 0}, {0, 0}}, 1.0, 1, 2, 1.0, true},
+		{"basic lose", [][]float64{{0, 0}, {0, 0}}, 0.1, [][]float64{{2, 2}, {2, 2}}, 1.0, 1, 2, 0.0, false},
+		{"zero matrix", [][]float64{}, 1.0, [][]float64{}, 1.0, 1, 0, 0.0, false},
+		{"input negative", [][]float64{{2, 2}, {2, 2}}, 1.0, [][]float64{{0, 0}, {0, 0}}, 1.0, 1, 2, -1.0, true},
+		{"input >1", [][]float64{{2, 2}, {2, 2}}, 1.0, [][]float64{{0, 0}, {0, 0}}, 1.0, 1, 2, 2.0, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			player := domain.NewPlayer(tt.playerMat, tt.playerGr)
-			enemy := domain.NewEnemy("enemy", tt.enemyMat, tt.enemyGr)
-			rule := logic.NewRuleMatrix(tt.ruleSeed, tt.ruleSize)
-			b := NewBattleService(player, enemy, logicToDomainRuleMatrix(rule))
-			result, _ := b.ExecuteBattle(tt.input)
-			_ = result // Could add more assertions if desired
-			if tt.playerMat.Rows == 0 || tt.enemyMat.Rows == 0 {
-				return // skip win/lose check for zero matrix
+			player := domain.NewPlayer(domain.NewMatrix(tt.playerMat), tt.playerGr)
+			enemy := domain.NewEnemy("enemy", domain.NewMatrix(tt.enemyMat), tt.enemyGr)
+			rule := domain.NewRuleMatrix(tt.ruleSeed, tt.ruleSize)
+			b := NewBattleService(player, enemy, rule)
+			result, win := b.ExecuteBattle(tt.input)
+			if len(tt.playerMat) == 0 || len(tt.enemyMat) == 0 {
+				if win {
+					t.Error("win should be false for zero matrix")
+				}
+				return
 			}
-			// Just check that result is a float and win is a bool (no panic)
+			if win != tt.wantWin {
+				t.Errorf("win = %v, want %v", win, tt.wantWin)
+			}
+			if result == 0 && tt.wantWin {
+				t.Error("result should not be zero for win case")
+			}
 		})
 	}
 }
@@ -47,22 +49,22 @@ func TestBattleService_ExecuteBattle(t *testing.T) {
 func TestNewBattleService(t *testing.T) {
 	tests := []struct {
 		name      string
-		playerMat *domain.Matrix
+		playerMat [][]float64
 		playerGr  float64
-		enemyMat  *domain.Matrix
+		enemyMat  [][]float64
 		enemyGr   float64
 		ruleSeed  int64
 		ruleSize  int
 	}{
-		{"normal", domain.NewMatrix(1, 1), 1.0, domain.NewMatrix(1, 1), 1.0, 1, 1},
-		{"zero matrix", domain.NewMatrix(0, 0), 1.0, domain.NewMatrix(0, 0), 1.0, 1, 0},
+		{"normal", [][]float64{{0}}, 1.0, [][]float64{{0}}, 1.0, 1, 1},
+		{"zero matrix", [][]float64{}, 1.0, [][]float64{}, 1.0, 1, 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			player := domain.NewPlayer(tt.playerMat, tt.playerGr)
-			enemy := domain.NewEnemy("e", tt.enemyMat, tt.enemyGr)
-			rule := logic.NewRuleMatrix(tt.ruleSeed, tt.ruleSize)
-			b := NewBattleService(player, enemy, logicToDomainRuleMatrix(rule))
+			player := domain.NewPlayer(domain.NewMatrix(tt.playerMat), tt.playerGr)
+			enemy := domain.NewEnemy("e", domain.NewMatrix(tt.enemyMat), tt.enemyGr)
+			rule := domain.NewRuleMatrix(tt.ruleSeed, tt.ruleSize)
+			b := NewBattleService(player, enemy, rule)
 			if b.Player != player || b.Enemy != enemy || b.Rules == nil {
 				t.Error("NewBattleService did not set fields correctly")
 			}
@@ -73,26 +75,26 @@ func TestNewBattleService(t *testing.T) {
 func TestBattleService_calculateBattleOutcome_GuardClauses(t *testing.T) {
 	tests := []struct {
 		name      string
-		playerMat *domain.Matrix
-		enemyMat  *domain.Matrix
+		playerMat [][]float64
+		enemyMat  [][]float64
 		ruleMat   [][]float64
 		wantZero  bool
 	}{
 		{"all nil", nil, nil, nil, true},
-		{"player nil", nil, domain.NewMatrix(2, 2), [][]float64{{1, 2}, {3, 4}}, true},
-		{"enemy nil", domain.NewMatrix(2, 2), nil, [][]float64{{1, 2}, {3, 4}}, true},
-		{"rule nil", domain.NewMatrix(2, 2), domain.NewMatrix(2, 2), nil, true},
-		{"rule empty", domain.NewMatrix(2, 2), domain.NewMatrix(2, 2), [][]float64{}, true},
-		{"rule row empty", domain.NewMatrix(2, 2), domain.NewMatrix(2, 2), [][]float64{{}}, true},
-		{"multiply nil", domain.NewMatrix(2, 2), domain.NewMatrix(2, 2), [][]float64{{1}, {2}}, true},
-		{"subtract nil", domain.NewMatrix(2, 2), domain.NewMatrix(3, 3), [][]float64{{1, 2}, {3, 4}}, true},
+		{"player nil", nil, [][]float64{{0, 0}, {0, 0}}, [][]float64{{1, 2}, {3, 4}}, true},
+		{"enemy nil", [][]float64{{0, 0}, {0, 0}}, nil, [][]float64{{1, 2}, {3, 4}}, true},
+		{"rule nil", [][]float64{{0, 0}, {0, 0}}, [][]float64{{0, 0}, {0, 0}}, nil, true},
+		{"rule empty", [][]float64{{0, 0}, {0, 0}}, [][]float64{{0, 0}, {0, 0}}, [][]float64{}, true},
+		{"rule row empty", [][]float64{{0, 0}, {0, 0}}, [][]float64{{0, 0}, {0, 0}}, [][]float64{{}}, true},
+		{"multiply nil", [][]float64{{0, 0}, {0, 0}}, [][]float64{{0, 0}, {0, 0}}, [][]float64{{1}, {2}}, true},
+		{"subtract nil", [][]float64{{0, 0}, {0, 0}}, [][]float64{{0, 0}, {0, 0}, {0, 0}}, [][]float64{{1, 2}, {3, 4}}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b := &BattleService{
-				Player: &domain.Player{MatrixState: tt.playerMat},
-				Enemy:  &domain.Enemy{MatrixState: tt.enemyMat},
-				Rules:  &domain.RuleMatrix{Matrix: tt.ruleMat},
+				Player: &domain.Player{MatrixState: domain.NewMatrix(tt.playerMat)},
+				Enemy:  &domain.Enemy{MatrixState: domain.NewMatrix(tt.enemyMat)},
+				Rules:  &domain.RuleMatrix{Matrix: domain.NewMatrix(tt.ruleMat)},
 			}
 			got := b.calculateBattleOutcome()
 			if tt.wantZero && got != 0 {
@@ -105,24 +107,24 @@ func TestBattleService_calculateBattleOutcome_GuardClauses(t *testing.T) {
 func TestBattleService_DoBattleTurn_Branches(t *testing.T) {
 	tests := []struct {
 		name      string
-		playerMat *domain.Matrix
+		playerMat [][]float64
 		playerGr  float64
-		enemyMat  *domain.Matrix
+		enemyMat  [][]float64
 		enemyGr   float64
 		ruleSeed  int64
 		ruleSize  int
 		input     float64
 		battles   int
 	}{
-		{"win false branch", domain.NewMatrix(2, 2), 0.1, domain.NewMatrix(2, 2), 1.0, 1, 2, 0.0, 0},
-		{"maxTry loop", domain.NewMatrix(2, 2), 1.0, domain.NewMatrix(2, 2), 0.1, 1, 2, 1.0, 5},
+		{"win false branch", [][]float64{{0, 0}, {0, 0}}, 0.1, [][]float64{{0, 0}, {0, 0}}, 1.0, 1, 2, 0.0, 0},
+		{"maxTry loop", [][]float64{{0, 0}, {0, 0}}, 1.0, [][]float64{{0, 0}, {0, 0}}, 0.1, 1, 2, 1.0, 5},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			player := domain.NewPlayer(tt.playerMat, tt.playerGr)
-			enemy := domain.NewEnemy("enemy", tt.enemyMat, tt.enemyGr)
-			rule := logic.NewRuleMatrix(tt.ruleSeed, tt.ruleSize)
-			b := NewBattleService(player, enemy, logicToDomainRuleMatrix(rule))
+			player := domain.NewPlayer(domain.NewMatrix(tt.playerMat), tt.playerGr)
+			enemy := domain.NewEnemy("enemy", domain.NewMatrix(tt.enemyMat), tt.enemyGr)
+			rule := domain.NewRuleMatrix(tt.ruleSeed, tt.ruleSize)
+			b := NewBattleService(player, enemy, rule)
 			for i := 0; i < tt.battles; i++ {
 				_, _ = b.DoBattleTurn(tt.input, i)
 			}
