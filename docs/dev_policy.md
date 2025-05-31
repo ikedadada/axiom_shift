@@ -3,13 +3,13 @@
 ## 1. アーキテクチャ
 
 - **レイヤードアーキテクチャ**を採用し、依存方向は内向きのみ。
-  - `cmd → app → usecase → domain` のみ許可。
+  - `main.go → internal/game → internal/ui → internal/usecase → internal/domain` のみ許可。
   - UI や外部 I/O は adapter 層（`ui/`）として usecase に依存可。
 - ディレクトリ構成は以下の通り：
 
 ```
 axiom_shift/
-├── main.go               # エントリポイント
+├── main.go               # エントリポイント（DIとEbiten起動のみ）
 ├── internal/
 │   ├── domain/           # エンティティ・値オブジェクト・ドメインロジック
 │   ├── usecase/          # アプリケーションユースケース（戦闘進行など）
@@ -25,13 +25,15 @@ axiom_shift/
 - **main.go 以外の全パッケージでユニットテスト必須**。
 - 正常系だけでなく、**異常系・ガード節も必ずテスト**し、カバレッジ 100%を目指す。
 - Ebiten の`Draw`や`Update`等の副作用メソッドは自動テスト困難なため、カバレッジ 0%でも許容。
-- テストは`go test ./...`で一括実行し、`go tool cover -func=coverage.out`で関数単位のカバレッジを確認。
+- テストは`go test ./...`で一括実行し、`go tool cover -func=cover.out`で関数単位のカバレッジを確認。
+- テストコードは**全てテーブル駆動（パラメータテスト）**で記述する。
+- コード上テスト可能なパターンは 100%カバーされていることを保証。
 
 ## 3. コーディング規約
 
 - main.go には DI と Ebiten 起動のみを書く。
 - ロジック層はテスト容易性・再現性を重視し、乱数シードは切り替え可能に。
-- UI 描画は MVP 段階では`ebitenutil.DebugPrint`等のテキスト描画で OK。
+- UI 描画は MVP 段階では`ebitenutil.DebugPrint`等のテキスト描画、または`Draw`メソッドでの矩形・色表現で OK。
 - 依存パッケージは`go.mod`で管理し、Ebiten は最新安定版を利用。
 - CI を想定し、`go vet`や`staticcheck`が通る品質を保つ。
 
