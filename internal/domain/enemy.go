@@ -17,11 +17,17 @@ func NewEnemy(name string, initialMatrix *Matrix, growthRate float64) *Enemy {
 
 // Grow updates the enemy's matrix based on the input value and rule matrix.
 func (e *Enemy) Grow(input float64, rule *Matrix) {
-	if e.Matrix.Rows == 0 || e.Matrix.Cols == 0 {
+	if e.Matrix == nil || rule == nil || e.Matrix.Rows == 0 || e.Matrix.Cols == 0 || rule.Rows == 0 || rule.Cols == 0 {
 		return
 	}
 	total := e.Matrix.Rows * e.Matrix.Cols
 	idx := int(input*float64(total-1) + 0.5)
+	if idx < 0 {
+		idx = 0
+	}
+	if idx >= total {
+		idx = total - 1
+	}
 	targetI := idx / e.Matrix.Cols
 	targetJ := idx % e.Matrix.Cols
 	for i := 0; i < e.Matrix.Rows; i++ {

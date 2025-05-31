@@ -18,6 +18,9 @@ func NewMatrix(rows, cols int) *Matrix {
 
 // Subtract performs matrix subtraction with another matrix.
 func (m *Matrix) Subtract(other *Matrix) *Matrix {
+	if m == nil || other == nil || m.Rows == 0 || m.Cols == 0 || other.Rows == 0 || other.Cols == 0 {
+		return nil
+	}
 	if m.Rows != other.Rows || m.Cols != other.Cols {
 		return nil
 	}
@@ -32,6 +35,9 @@ func (m *Matrix) Subtract(other *Matrix) *Matrix {
 
 // Multiply performs matrix multiplication with another matrix.
 func (m *Matrix) Multiply(other *Matrix) *Matrix {
+	if m == nil || other == nil || m.Rows == 0 || m.Cols == 0 || other.Rows == 0 || other.Cols == 0 {
+		return nil
+	}
 	if m.Cols != other.Rows {
 		return nil
 	}
@@ -64,6 +70,9 @@ func (m *Matrix) GetScalarValue() float64 {
 
 // Normalize normalizes the matrix so that its L2 norm becomes 1 (unless norm is 0).
 func (m *Matrix) Normalize() {
+	if m == nil || m.Rows == 0 || m.Cols == 0 {
+		return
+	}
 	sumSquares := 0.0
 	for i := 0; i < m.Rows; i++ {
 		for j := 0; j < m.Cols; j++ {

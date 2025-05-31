@@ -11,12 +11,12 @@ type RuleMatrix struct {
 
 // NewRuleMatrix generates a new RuleMatrix based on a given seed.
 func NewRuleMatrix(seed int64, size int) *RuleMatrix {
-	rand.Seed(seed)
+	r := rand.New(rand.NewSource(seed))
 	matrix := make([][]float64, size)
 	for i := range matrix {
 		matrix[i] = make([]float64, size)
 		for j := range matrix[i] {
-			matrix[i][j] = rand.Float64()*2 - 1 // -1〜+1の範囲でランダム
+			matrix[i][j] = r.Float64()*2 - 1 // -1〜+1の範囲でランダム
 		}
 	}
 	return &RuleMatrix{matrix: matrix}

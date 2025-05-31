@@ -15,11 +15,17 @@ func NewPlayer(initialState *Matrix, growthRate float64) *Player {
 
 // UpdateMatrix updates the player's matrix state based on the input value.
 func (p *Player) UpdateMatrix(input float64) {
-	if p.MatrixState.Rows == 0 || p.MatrixState.Cols == 0 {
+	if p.MatrixState == nil || p.MatrixState.Rows == 0 || p.MatrixState.Cols == 0 {
 		return
 	}
 	total := p.MatrixState.Rows * p.MatrixState.Cols
 	idx := int(input*float64(total-1) + 0.5)
+	if idx < 0 {
+		idx = 0
+	}
+	if idx >= total {
+		idx = total - 1
+	}
 	targetI := idx / p.MatrixState.Cols
 	targetJ := idx % p.MatrixState.Cols
 	for i := 0; i < p.MatrixState.Rows; i++ {

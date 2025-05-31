@@ -31,12 +31,22 @@ func (b *BattleService) calculateBattleOutcome() float64 {
 	playerMatrix := b.Player.GetMatrix()
 	enemyMatrix := b.Enemy.GetMatrix()
 	ruleMatrix := b.Rules.Matrix // [][]float64
+	if playerMatrix == nil || enemyMatrix == nil || ruleMatrix == nil || len(ruleMatrix) == 0 || len(ruleMatrix[0]) == 0 {
+		return 0
+	}
 	m := domain.NewMatrix(len(ruleMatrix), len(ruleMatrix[0]))
 	for i := range ruleMatrix {
 		for j := range ruleMatrix[i] {
 			m.Data[i][j] = ruleMatrix[i][j]
 		}
 	}
-	outcome := playerMatrix.Multiply(m).Subtract(enemyMatrix)
+	outcome := playerMatrix.Multiply(m)
+	if outcome == nil {
+		return 0
+	}
+	outcome = outcome.Subtract(enemyMatrix)
+	if outcome == nil {
+		return 0
+	}
 	return outcome.GetScalarValue()
 }
