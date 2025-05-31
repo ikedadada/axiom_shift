@@ -7,6 +7,7 @@ import (
 	"axiom_shift/internal/usecase"
 	"fmt"
 	"image/color"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -36,20 +37,24 @@ func logicToDomainRuleMatrix(lr *logic.RuleMatrix) *domain.RuleMatrix {
 	return &domain.RuleMatrix{Matrix: mat}
 }
 
-func NewGame(seed int64) *Game {
-	// プレイヤーの初期行列を有利に設定（対角成分を大きく）
+func NewGame() *Game {
 	pm := domain.NewMatrix(2, 2)
 	pm.Data[0][0] = 2.0
 	pm.Data[1][1] = 2.0
 	player := domain.NewPlayer(pm, 0.5)
-	// 敵は従来通り
 	enemy := domain.NewEnemy("Enemy", domain.NewMatrix(2, 2), 0.5)
-	rule := logic.NewRuleMatrix(seed, 2)
+	battleMax := 10
+	initialSeed := time.Now().UnixNano()
+	seed, rule, playerPath, enemyPath := usecase.FindValidSeed(battleMax, initialSeed, player, enemy)
+	player.Reset() // 初期化
+	enemy.Reset()  // 初期化
+	_ = playerPath // 必要に応じて利用
+	_ = enemyPath  // 必要に応じて利用
 	ui := ui.NewUI()
 	ui.ClearBattleLog()
 	return &Game{
 		battleCount: 0,
-		battleMax:   10,
+		battleMax:   battleMax,
 		player:      player,
 		enemy:       enemy,
 		rule:        rule,
@@ -80,37 +85,12 @@ func (g *Game) Update() error {
 			g.phase = "input"
 		}
 	case "battle":
-		// バトル回数に応じて成長率を増加
-		g.player.GrowthRate = 0.5 + 0.1*float64(g.battleCount)
 		service := usecase.NewBattleService(g.player, g.enemy, logicToDomainRuleMatrix(g.rule))
-		result, win := service.ExecuteBattle(g.inputValue)
-		g.lastResult = &result // 直近のバトル結果を保存
+		result, win := service.DoBattleTurn(g.inputValue, g.battleCount)
+		g.lastResult = &result
 		g.battleCount++
 		log := fmt.Sprintf("Battle %d: Input=%s Result=%s Win/Lose=%s", g.battleCount, formatFloat(g.inputValue), formatFloat(result), winLoseStrEN(win))
 		g.ui.AddBattleLog(log)
-		// プレイヤーが勝った場合のみ敵が成長
-		if win {
-			ruleMatrix := g.rule.GetMatrix()
-			m := domain.NewMatrix(len(ruleMatrix), len(ruleMatrix[0]))
-			for i := range ruleMatrix {
-				for j := range ruleMatrix[i] {
-					m.Data[i][j] = ruleMatrix[i][j]
-				}
-			}
-			// 敵がプレイヤーに勝てるまで最大10回Grow
-			maxTry := 10
-			for i := 0; i < maxTry; i++ {
-				g.enemy.Grow(g.inputValue, m)
-				// 成長後に再度バトル判定
-				serviceTmp := usecase.NewBattleService(g.player, g.enemy, logicToDomainRuleMatrix(g.rule))
-				_, winTmp := serviceTmp.ExecuteBattle(g.inputValue)
-				if winTmp {
-					continue // まだ勝てない→さらにGrow
-				} else {
-					break // 勝てなくなったら終了
-				}
-			}
-		}
 		if g.battleCount >= g.battleMax {
 			g.phase = "end"
 			g.ui.AddBattleLog("---")
