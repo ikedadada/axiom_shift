@@ -8,28 +8,29 @@ import (
 	"math/rand"
 )
 
-// FindValidSeed: battleMax回数に対し有効なseed/rule/playerPath/enemyPathを返す
-func FindValidSeed(battleMax int, initialSeed int64, player *domain.Player, enemy *domain.Enemy) (int64, *logic.RuleMatrix, []float64, []float64) {
-	if (battleMax <= 0) || (player == nil) || (enemy == nil) {
+// FindValidSeed: battleMax 回のバトルで双方に勝ちパターンが存在する seed / rule / playerPath / enemyPath を返す
+func FindValidSeed(battleMax int, initialSeed int64, player *domain.Player, enemy *domain.Enemy) (int64, *logic.RuleMatrix, []int, []int) {
+	if battleMax <= 0 || player == nil || enemy == nil {
 		panic("Invalid parameters: battleMax must be > 0, player and enemy must not be nil")
 	}
 
 	const (
-		roughSamples = 2000
-		deepSamples  = 20000
-		mctsWidth    = 3
-		mctsMaxNodes = 100000
+		roughSamples = 2_000     // 粗い勝率フィルタ
+		deepSamples  = 20_000    // 詳細勝率フィルタ
+		mctsWidth    = 3         // ビーム幅
+		mctsMaxNodes = 1_000_000 // 探索ノード上限
 	)
-	// Wilson score interval (近似)
-	betaCI := func(wins, n int, alpha float64) (float64, float64) {
+
+	// Wilson score interval (近似) で勝率信頼区間を求める
+	betaCI := func(wins, n int) (float64, float64) {
 		if n == 0 {
 			return 0, 1
 		}
 		p := float64(wins) / float64(n)
-		z := 2.576 // 99%信頼区間
+		z := 2.576 // 99% 信頼区間
 		denom := 1 + z*z/float64(n)
 		center := p + z*z/(2*float64(n))
-		pm := z * (math.Sqrt(p*(1-p)/float64(n) + z*z/(4*float64(n)*float64(n))))
+		pm := z * math.Sqrt(p*(1-p)/float64(n)+z*z/(4*float64(n)*float64(n)))
 		low := (center - pm) / denom
 		high := (center + pm) / denom
 		if low < 0 {
@@ -40,6 +41,7 @@ func FindValidSeed(battleMax int, initialSeed int64, player *domain.Player, enem
 		}
 		return low, high
 	}
+
 	// サンプリングによる勝率推定
 	simulateSamples := func(rule *logic.RuleMatrix, samples int) (int, int) {
 		playerWins := 0
@@ -47,13 +49,15 @@ func FindValidSeed(battleMax int, initialSeed int64, player *domain.Player, enem
 			player.Reset()
 			enemy.Reset()
 			service := NewBattleService(player, enemy, &domain.RuleMatrix{Matrix: rule.GetMatrix()})
-			inputs := make([]float64, battleMax)
-			for i := 0; i < battleMax; i++ {
-				inputs[i] = float64(rand.Intn(10)) / 9.0
+
+			inputs := make([]int, battleMax)
+			for i := range inputs {
+				inputs[i] = rand.Intn(10)
 			}
+
 			var win bool
 			for battle := 0; battle < battleMax; battle++ {
-				_, win = service.DoBattleTurn(inputs[battle], battle)
+				_, win = service.DoBattleTurn(float64(inputs[battle])/9, battle)
 			}
 			if win {
 				playerWins++
@@ -61,86 +65,120 @@ func FindValidSeed(battleMax int, initialSeed int64, player *domain.Player, enem
 		}
 		return playerWins, samples
 	}
-	// ProofPhase: MCTS風DFS（幅3, 最大ノード10万）
-	proofPhase := func(rule *logic.RuleMatrix) (bool, []float64, []float64) {
+
+	// ProofPhase: DFS＋ビーム幅＋分岐シャッフルで多様な勝ちパスを探索
+	proofPhase := func(rule *logic.RuleMatrix) (bool, []int, []int) {
 		type node struct {
 			depth  int
-			inputs []float64
+			inputs []int
 		}
-		var foundPlayer, foundEnemy bool
-		var playerPath, enemyPath []float64
-		var nodes int
+
+		var (
+			playerPaths [][]int
+			enemyPaths  [][]int
+			nodes       int
+		)
+
 		var dfs func(n node)
 		dfs = func(n node) {
-			if foundPlayer && foundEnemy {
-				return
-			}
 			if nodes >= mctsMaxNodes {
 				return
 			}
 			nodes++
+
+			// 末端まで到達したら勝敗を判定
 			if n.depth == battleMax {
 				player.Reset()
 				enemy.Reset()
 				service := NewBattleService(player, enemy, &domain.RuleMatrix{Matrix: rule.GetMatrix()})
+
 				var win bool
 				for battle := 0; battle < battleMax; battle++ {
-					_, win = service.DoBattleTurn(n.inputs[battle], battle)
+					_, win = service.DoBattleTurn(float64(n.inputs[battle])/9, battle)
 				}
-				if win && !foundPlayer {
-					foundPlayer = true
-					playerPath = append([]float64{}, n.inputs...)
-				}
-				if !win && !foundEnemy {
-					foundEnemy = true
-					enemyPath = append([]float64{}, n.inputs...)
+				if win {
+					// プレイヤー勝利パス
+					playerPaths = append(playerPaths, append([]int(nil), n.inputs...))
+				} else {
+					// 敵勝利パス
+					enemyPaths = append(enemyPaths, append([]int(nil), n.inputs...))
 				}
 				return
 			}
-			choices := []float64{0.0, 0.5, 1.0}
-			choices = append(choices, float64(rand.Intn(10))/9.0)
+
+			// 0.0〜1.0 を 0.1 刻み 11 通り用意し、毎ノードでシャッフル
+			choices := make([]int, 10)
+			for i := 0; i < 10; i++ {
+				choices[i] = i
+			}
+			rand.Shuffle(len(choices), func(i, j int) { choices[i], choices[j] = choices[j], choices[i] })
+
+			// ランダムに mctsWidth 本を採用（幅制限）
+			if len(choices) > mctsWidth {
+				choices = choices[:mctsWidth]
+			}
+
 			for _, v := range choices {
-				dfs(node{n.depth + 1, append(n.inputs, v)})
-				if foundPlayer && foundEnemy {
-					return
-				}
+				dfs(node{depth: n.depth + 1, inputs: append(append([]int(nil), n.inputs...), v)})
 				if nodes >= mctsMaxNodes {
 					return
 				}
 			}
 		}
-		dfs(node{0, []float64{}})
-		return foundPlayer && foundEnemy, playerPath, enemyPath
+
+		dfs(node{depth: 0, inputs: []int{}})
+
+		// 双方に少なくとも 1 パスずつあれば OK
+		if len(playerPaths) == 0 || len(enemyPaths) == 0 {
+			return false, nil, nil
+		}
+
+		// ランダムに 1 本ずつ返す
+		playerPath := playerPaths[rand.Intn(len(playerPaths))]
+		enemyPath := enemyPaths[rand.Intn(len(enemyPaths))]
+		return true, playerPath, enemyPath
 	}
 
+	// ——— メインループ ————————————————————————————
+
 	rand.Seed(initialSeed)
-	var debug_SearchSeedCount = 0
+	var debugSearchSeedCount int
+
 	for {
 		seedCandidate := logic.NewSeedManager().GetSeed()
 		rule := logic.NewRuleMatrix(seedCandidate, 2)
+
 		// RoughFilter
 		playerWins, n := simulateSamples(rule, roughSamples)
-		pHat := float64(playerWins) / float64(n)
-		low, high := betaCI(playerWins, n, 0.01)
-		if !(low < 0.99 && high > 0.01) {
-			debug_SearchSeedCount++
-			fmt.Printf("[Rough] Seed %d rejected: CI=(%.3f,%.3f)\n", seedCandidate, low, high)
+		low, high := betaCI(playerWins, n)
+		if !(low < 0.99 && high > 0.01) { // ほぼ 0 でも 1 でもない
+			debugSearchSeedCount++
+			fmt.Printf("[Rough] Seed %d rejected (%d試行) CI = (%.3f, %.3f)\n", seedCandidate, n, low, high)
 			continue
 		}
+
 		// DeepFilter
 		playerWins, n = simulateSamples(rule, deepSamples)
-		pHat = float64(playerWins) / float64(n)
-		if !(pHat > 0 && pHat < 1) {
-			debug_SearchSeedCount++
-			fmt.Printf("[Deep] Seed %d rejected: p̂=%.3f\n", seedCandidate, pHat)
+		pHat := float64(playerWins) / float64(n)
+		if pHat == 0 || pHat == 1 {
+			debugSearchSeedCount++
+			fmt.Printf("[Deep]  Seed %d rejected (%d試行) p̂ = %.3f\n", seedCandidate, n, pHat)
 			continue
 		}
+
 		// ProofPhase
 		ok, playerPath, enemyPath := proofPhase(rule)
-		debug_SearchSeedCount++
-		fmt.Printf("[Proof] Seed %d: ok=%v, playerWinPath=%v, enemyWinPath=%v\n", seedCandidate, ok, playerPath, enemyPath)
+		debugSearchSeedCount++
+		fmt.Printf("[Proof] Seed %d (試行 %d): ok=%v\n", seedCandidate, debugSearchSeedCount, ok)
+
 		if ok {
+			fmt.Printf("Found valid seed: %d with playerPath=%v, enemyPath=%v\n", seedCandidate, playerPath, enemyPath)
 			return seedCandidate, rule, playerPath, enemyPath
+		}
+
+		// 進行が遅いときのデバッグ用出力（任意）
+		if debugSearchSeedCount%100 == 0 {
+			fmt.Printf("Tried %d seeds so far, still searching...\n", debugSearchSeedCount)
 		}
 	}
 }
