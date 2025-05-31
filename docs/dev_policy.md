@@ -25,7 +25,9 @@ axiom_shift/
 - **main.go 以外の全パッケージでユニットテスト必須**。
 - 正常系だけでなく、**異常系・ガード節も必ずテスト**し、カバレッジ 100%を目指す。
 - Ebiten の`Draw`や`Update`等の副作用メソッドは自動テスト困難なため、カバレッジ 0%でも許容。
-- テストは`go test ./...`で一括実行し、`go tool cover -func=cover.out`で関数単位のカバレッジを確認。
+- テストは`go test ./... -coverprofile=cover.out`で一括実行し、`go tool cover -func=cover.out`で関数単位のカバレッジを確認すること。
+  - ※`go test ./...`だけでは`cover.out`は生成されず、`go tool cover -func=cover.out`で 0.0%と表示されるので注意。
+  - 必ず`-coverprofile=cover.out`オプションを付けてテストを実行すること。
 - テストコードは**全てテーブル駆動（パラメータテスト）**で記述する。
 - コード上テスト可能なパターンは 100%カバーされていることを保証。
 
