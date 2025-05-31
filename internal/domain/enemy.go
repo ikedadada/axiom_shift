@@ -1,26 +1,41 @@
 package domain
 
 type Enemy struct {
-	Name       string
-	Matrix     *Matrix
-	GrowthRate float64
+	Name         string
+	initialState Matrix // 初期状態のマトリックス
+	MatrixState  *Matrix
+	GrowthRate   float64
 }
 
 // NewEnemy creates a new enemy with the given name and initial matrix state.
 func NewEnemy(name string, initialMatrix *Matrix, growthRate float64) *Enemy {
-	return &Enemy{
-		Name:       name,
-		Matrix:     initialMatrix,
-		GrowthRate: growthRate,
+	if initialMatrix == nil {
+		return &Enemy{
+			Name:         name,
+			initialState: Matrix{},
+			MatrixState:  nil,
+			GrowthRate:   growthRate,
+		}
 	}
+	return &Enemy{
+		Name:         name,
+		initialState: *initialMatrix, // Store the initial state
+		MatrixState:  initialMatrix,
+		GrowthRate:   growthRate,
+	}
+}
+
+// Reset resets the enemy's matrix to its initial state.
+func (e *Enemy) Reset() {
+	e.MatrixState = e.initialState.Copy()
 }
 
 // Grow updates the enemy's matrix based on the input value and rule matrix.
 func (e *Enemy) Grow(input float64, rule *Matrix) {
-	if e.Matrix == nil || rule == nil || e.Matrix.Rows == 0 || e.Matrix.Cols == 0 || rule.Rows == 0 || rule.Cols == 0 {
+	if e.MatrixState == nil || rule == nil || e.MatrixState.Rows == 0 || e.MatrixState.Cols == 0 || rule.Rows == 0 || rule.Cols == 0 {
 		return
 	}
-	total := e.Matrix.Rows * e.Matrix.Cols
+	total := e.MatrixState.Rows * e.MatrixState.Cols
 	idx := int(input*float64(total-1) + 0.5)
 	if idx < 0 {
 		idx = 0
@@ -28,14 +43,14 @@ func (e *Enemy) Grow(input float64, rule *Matrix) {
 	if idx >= total {
 		idx = total - 1
 	}
-	targetI := idx / e.Matrix.Cols
-	targetJ := idx % e.Matrix.Cols
-	for i := 0; i < e.Matrix.Rows; i++ {
-		for j := 0; j < e.Matrix.Cols; j++ {
+	targetI := idx / e.MatrixState.Cols
+	targetJ := idx % e.MatrixState.Cols
+	for i := 0; i < e.MatrixState.Rows; i++ {
+		for j := 0; j < e.MatrixState.Cols; j++ {
 			if i == targetI && j == targetJ {
-				e.Matrix.Data[i][j] += 1.0 * e.GrowthRate
+				e.MatrixState.Data[i][j] += 1.0 * e.GrowthRate
 			} else {
-				e.Matrix.Data[i][j] += 0.1 * e.GrowthRate
+				e.MatrixState.Data[i][j] += 0.1 * e.GrowthRate
 			}
 		}
 	}
@@ -50,9 +65,9 @@ func (e *Enemy) Grow(input float64, rule *Matrix) {
 			}
 		}
 	}
-	e.Matrix.Data[maxI][maxJ] += 1.0 * e.GrowthRate
+	e.MatrixState.Data[maxI][maxJ] += 0.5 * e.GrowthRate
 }
 
 func (e *Enemy) GetMatrix() *Matrix {
-	return e.Matrix
+	return e.MatrixState
 }

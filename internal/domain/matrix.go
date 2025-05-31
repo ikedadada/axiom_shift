@@ -90,6 +90,19 @@ func (m *Matrix) Normalize() {
 	}
 }
 
+// Copy creates a deep copy of the matrix.
+func (m *Matrix) Copy() *Matrix {
+	if m == nil {
+		return nil
+	}
+	newData := make([][]float64, m.Rows)
+	for i := range newData {
+		newData[i] = make([]float64, m.Cols)
+		copy(newData[i], m.Data[i])
+	}
+	return &Matrix{Data: newData, Rows: m.Rows, Cols: m.Cols}
+}
+
 // sqrt is a helper for square root (for normalization)
 func sqrt(x float64) float64 {
 	if x == 0 {

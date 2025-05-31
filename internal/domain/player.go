@@ -1,25 +1,45 @@
 package domain
 
 type Player struct {
-	MatrixState *Matrix
-	GrowthRate  float64
+	initialState Matrix // 初期状態のマトリックス
+	MatrixState  *Matrix
+	GrowthRate   float64
 }
 
 // NewPlayer initializes a new Player with a given initial matrix state and growth rate.
 func NewPlayer(initialState *Matrix, growthRate float64) *Player {
-	return &Player{
-		MatrixState: initialState,
-		GrowthRate:  growthRate,
+	if initialState == nil {
+		return &Player{
+			initialState: Matrix{},
+			MatrixState:  nil,
+			GrowthRate:   growthRate,
+		}
 	}
+	return &Player{
+		initialState: *initialState,
+		MatrixState:  initialState,
+		GrowthRate:   growthRate,
+	}
+}
+
+// Reset resets the player's matrix state to the initial state.
+func (p *Player) Reset() {
+	p.MatrixState = p.initialState.Copy()
 }
 
 // UpdateMatrix updates the player's matrix state based on the input value.
 func (p *Player) UpdateMatrix(input float64) {
-	if p.MatrixState.Rows == 0 || p.MatrixState.Cols == 0 {
+	if p.MatrixState == nil || p.MatrixState.Rows == 0 || p.MatrixState.Cols == 0 {
 		return
 	}
 	total := p.MatrixState.Rows * p.MatrixState.Cols
 	idx := int(input*float64(total-1) + 0.5)
+	if idx < 0 {
+		idx = 0
+	}
+	if idx >= total {
+		idx = total - 1
+	}
 	targetI := idx / p.MatrixState.Cols
 	targetJ := idx % p.MatrixState.Cols
 	for i := 0; i < p.MatrixState.Rows; i++ {

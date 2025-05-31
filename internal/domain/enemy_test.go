@@ -17,7 +17,7 @@ func TestNewEnemy(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			e := NewEnemy(tt.wantName, tt.matrix, tt.growthRate)
-			if e.Name != tt.wantName || e.Matrix != tt.matrix || e.GrowthRate != tt.growthRate {
+			if e.Name != tt.wantName || e.MatrixState != tt.matrix || e.GrowthRate != tt.growthRate {
 				t.Errorf("NewEnemy fields not set correctly: got %+v", e)
 			}
 		})
