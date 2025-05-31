@@ -37,3 +37,28 @@ func TestSeedDeterminism(t *testing.T) {
 		})
 	}
 }
+
+func TestSeedManager_Basic(t *testing.T) {
+	sm := NewSeedManager()
+	seed := sm.GetSeed()
+	sm.SetSeed(seed + 1)
+	if sm.GetSeed() != seed+1 {
+		t.Error("SetSeed or GetSeed failed")
+	}
+}
+
+func TestSeedManagerWithFixedValue(t *testing.T) {
+	sm := NewSeedManagerWithFixedValue(123)
+	if sm.GetSeed() != 123 {
+		t.Error("NewSeedManagerWithFixedValue failed")
+	}
+}
+
+func TestSeedManager_Randoms(t *testing.T) {
+	sm := NewSeedManagerWithFixedValue(42)
+	f := sm.RandomFloat64()
+	if f < 0 || f > 1 {
+		t.Error("RandomFloat64 out of range")
+	}
+	_ = sm.RandomInt(0, 10)
+}

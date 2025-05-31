@@ -138,6 +138,54 @@ func TestMatrixNormalize(t *testing.T) {
 	}
 }
 
+func TestMatrixNormalize_GuardClauses(t *testing.T) {
+	var m *Matrix
+	m.Normalize() // nilでもpanicしない
+
+	m = NewMatrix(0, 0)
+	m.Normalize() // 0サイズでもpanicしない
+
+	m = NewMatrix(2, 2)
+	// すべて0の場合（sumSquares==0）
+	m.Normalize() // 何も起こらない
+}
+
+func TestMatrix_Copy(t *testing.T) {
+	m := NewMatrix(2, 2)
+	m.Data[0][0] = 1
+	m.Data[1][1] = 2
+	copy := m.Copy()
+	if copy.Rows != 2 || copy.Cols != 2 {
+		t.Error("Copy: dimension mismatch")
+	}
+	if copy.Data[0][0] != 1 || copy.Data[1][1] != 2 {
+		t.Error("Copy: data mismatch")
+	}
+	copy.Data[0][0] = 99
+	if m.Data[0][0] == 99 {
+		t.Error("Copy: not deep copy")
+	}
+}
+
+func TestMatrixCopy_GuardClauses(t *testing.T) {
+	var m *Matrix
+	if m.Copy() != nil {
+		t.Error("Copy: nil matrix should return nil")
+	}
+}
+
+func TestMatrix_sqrt(t *testing.T) {
+	if sqrt(4) != 2 {
+		t.Error("sqrt(4) should be 2")
+	}
+	if sqrt(0) != 0 {
+		t.Error("sqrt(0) should be 0")
+	}
+	if sqrt(-1) != 0 {
+		t.Error("sqrt(-1) should be 0")
+	}
+}
+
 func abs(x float64) float64 {
 	if x < 0 {
 		return -x

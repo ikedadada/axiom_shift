@@ -10,6 +10,10 @@ import (
 
 // FindValidSeed: battleMax回数に対し有効なseed/rule/playerPath/enemyPathを返す
 func FindValidSeed(battleMax int, initialSeed int64, player *domain.Player, enemy *domain.Enemy) (int64, *logic.RuleMatrix, []float64, []float64) {
+	if (battleMax <= 0) || (player == nil) || (enemy == nil) {
+		panic("Invalid parameters: battleMax must be > 0, player and enemy must not be nil")
+	}
+
 	const (
 		roughSamples = 2000
 		deepSamples  = 20000

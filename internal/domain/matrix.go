@@ -108,6 +108,9 @@ func sqrt(x float64) float64 {
 	if x == 0 {
 		return 0
 	}
+	if x < 0 {
+		return 0
+	}
 	z := x
 	for i := 0; i < 10; i++ {
 		z -= (z*z - x) / (2 * z)

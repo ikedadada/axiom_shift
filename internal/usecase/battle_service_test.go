@@ -69,3 +69,63 @@ func TestNewBattleService(t *testing.T) {
 		})
 	}
 }
+
+func TestBattleService_calculateBattleOutcome_GuardClauses(t *testing.T) {
+	tests := []struct {
+		name      string
+		playerMat *domain.Matrix
+		enemyMat  *domain.Matrix
+		ruleMat   [][]float64
+		wantZero  bool
+	}{
+		{"all nil", nil, nil, nil, true},
+		{"player nil", nil, domain.NewMatrix(2, 2), [][]float64{{1, 2}, {3, 4}}, true},
+		{"enemy nil", domain.NewMatrix(2, 2), nil, [][]float64{{1, 2}, {3, 4}}, true},
+		{"rule nil", domain.NewMatrix(2, 2), domain.NewMatrix(2, 2), nil, true},
+		{"rule empty", domain.NewMatrix(2, 2), domain.NewMatrix(2, 2), [][]float64{}, true},
+		{"rule row empty", domain.NewMatrix(2, 2), domain.NewMatrix(2, 2), [][]float64{{}}, true},
+		{"multiply nil", domain.NewMatrix(2, 2), domain.NewMatrix(2, 2), [][]float64{{1}, {2}}, true},
+		{"subtract nil", domain.NewMatrix(2, 2), domain.NewMatrix(3, 3), [][]float64{{1, 2}, {3, 4}}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := &BattleService{
+				Player: &domain.Player{MatrixState: tt.playerMat},
+				Enemy:  &domain.Enemy{MatrixState: tt.enemyMat},
+				Rules:  &domain.RuleMatrix{Matrix: tt.ruleMat},
+			}
+			got := b.calculateBattleOutcome()
+			if tt.wantZero && got != 0 {
+				t.Errorf("Expected 0 for guard clause, got %v", got)
+			}
+		})
+	}
+}
+
+func TestBattleService_DoBattleTurn_Branches(t *testing.T) {
+	tests := []struct {
+		name      string
+		playerMat *domain.Matrix
+		playerGr  float64
+		enemyMat  *domain.Matrix
+		enemyGr   float64
+		ruleSeed  int64
+		ruleSize  int
+		input     float64
+		battles   int
+	}{
+		{"win false branch", domain.NewMatrix(2, 2), 0.1, domain.NewMatrix(2, 2), 1.0, 1, 2, 0.0, 0},
+		{"maxTry loop", domain.NewMatrix(2, 2), 1.0, domain.NewMatrix(2, 2), 0.1, 1, 2, 1.0, 5},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			player := domain.NewPlayer(tt.playerMat, tt.playerGr)
+			enemy := domain.NewEnemy("enemy", tt.enemyMat, tt.enemyGr)
+			rule := logic.NewRuleMatrix(tt.ruleSeed, tt.ruleSize)
+			b := NewBattleService(player, enemy, logicToDomainRuleMatrix(rule))
+			for i := 0; i < tt.battles; i++ {
+				_, _ = b.DoBattleTurn(tt.input, i)
+			}
+		})
+	}
+}

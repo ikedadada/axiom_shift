@@ -16,8 +16,8 @@ func NewPlayer(initialState *Matrix, growthRate float64) *Player {
 		}
 	}
 	return &Player{
-		initialState: *initialState,
-		MatrixState:  initialState,
+		initialState: *initialState.Copy(),
+		MatrixState:  initialState.Copy(),
 		GrowthRate:   growthRate,
 	}
 }

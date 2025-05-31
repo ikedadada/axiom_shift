@@ -19,8 +19,8 @@ func NewEnemy(name string, initialMatrix *Matrix, growthRate float64) *Enemy {
 	}
 	return &Enemy{
 		Name:         name,
-		initialState: *initialMatrix, // Store the initial state
-		MatrixState:  initialMatrix,
+		initialState: *initialMatrix.Copy(),
+		MatrixState:  initialMatrix.Copy(),
 		GrowthRate:   growthRate,
 	}
 }
