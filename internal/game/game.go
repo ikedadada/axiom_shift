@@ -147,6 +147,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 			ui.DrawText(screen, "GAME LOSE! Press R to retry same rule.", 10, 460)
 		}
 	}
+	// 画面右下にSeed値を表示
+	seed := 42 // 現状は固定値。将来可変化する場合はGame構造体に持たせる
+	seedMsg := fmt.Sprintf("Seed: %d", seed)
+	ui.DrawText(screen, seedMsg, 540, 460)
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
