@@ -84,7 +84,7 @@ func TestPlayerGetMatrix(t *testing.T) {
 	m.Data[1][0], m.Data[1][1] = 3, 4
 	p := NewPlayer(m, 1.0)
 	got := p.GetMatrix()
-	if !matricesEqual(got, m) {
+	if !equal(got, m) {
 		t.Error("GetMatrix did not return correct matrix content")
 	}
 }

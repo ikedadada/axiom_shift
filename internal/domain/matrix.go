@@ -117,3 +117,20 @@ func sqrt(x float64) float64 {
 	}
 	return z
 }
+
+func equal(a, b *Matrix) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	if a.Rows != b.Rows || a.Cols != b.Cols {
+		return false
+	}
+	for i := 0; i < a.Rows; i++ {
+		for j := 0; j < a.Cols; j++ {
+			if a.Data[i][j] != b.Data[i][j] {
+				return false
+			}
+		}
+	}
+	return true
+}

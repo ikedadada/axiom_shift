@@ -101,7 +101,7 @@ func TestEnemyGrow_GuardClauses(t *testing.T) {
 				beforeCopy := before.Copy()
 				tt.enemy.Grow(tt.input, tt.rule)
 				// MatrixState should not change for zero matrix
-				if before.Rows == 0 && before.Cols == 0 && !matricesEqual(tt.enemy.MatrixState, beforeCopy) {
+				if before.Rows == 0 && before.Cols == 0 && !equal(tt.enemy.MatrixState, beforeCopy) {
 					t.Error("MatrixState should not change for zero matrix")
 				}
 			} else {
@@ -114,30 +114,13 @@ func TestEnemyGrow_GuardClauses(t *testing.T) {
 	}
 }
 
-func matricesEqual(a, b *Matrix) bool {
-	if a == nil || b == nil {
-		return a == b
-	}
-	if a.Rows != b.Rows || a.Cols != b.Cols {
-		return false
-	}
-	for i := 0; i < a.Rows; i++ {
-		for j := 0; j < a.Cols; j++ {
-			if a.Data[i][j] != b.Data[i][j] {
-				return false
-			}
-		}
-	}
-	return true
-}
-
 func TestEnemyGetMatrix(t *testing.T) {
 	m := NewMatrix(2, 2)
 	m.Data[0][0], m.Data[0][1] = 1, 2
 	m.Data[1][0], m.Data[1][1] = 3, 4
 	e := NewEnemy("test", m, 1.0)
 	got := e.GetMatrix()
-	if !matricesEqual(got, m) {
+	if !equal(got, m) {
 		t.Error("GetMatrix did not return correct matrix content")
 	}
 }
