@@ -38,18 +38,26 @@ func logicToDomainRuleMatrix(lr *logic.RuleMatrix) *domain.RuleMatrix {
 }
 
 func NewGame() *Game {
-	pm := domain.NewMatrix(2, 2)
-	pm.Data[0][0] = 1.0
-	pm.Data[1][1] = 1.0
+	pm := domain.NewMatrix(3, 3)
+	for i := 0; i < 3; i++ {
+		pm.Data[i][i] = 2.0
+	}
 	player := domain.NewPlayer(pm, 0.5)
-	enemy := domain.NewEnemy("Enemy", domain.NewMatrix(2, 2), 0.5)
+	enemyMat := domain.NewMatrix(3, 3)
+	for i := 0; i < 3; i++ {
+		enemyMat.Data[i][2-i] = 2.0
+	}
+	enemy := domain.NewEnemy("Enemy", enemyMat, 0.5)
 	battleMax := 10
 	initialSeed := time.Now().UnixNano()
-	seed, rule, playerPath, enemyPath := usecase.FindValidSeed(battleMax, initialSeed, player, enemy)
-	player.Reset() // 初期化
-	enemy.Reset()  // 初期化
-	_ = playerPath // 必要に応じて利用
-	_ = enemyPath  // 必要に応じて利用
+	seed, rule, playerPath, enemyPath, err := usecase.FindValidSeed(battleMax, initialSeed, player, enemy)
+	if err != nil {
+		panic(fmt.Sprintf("Seed search failed: %v", err))
+	}
+	player.Reset()
+	enemy.Reset()
+	_ = playerPath
+	_ = enemyPath
 	ui := ui.NewUI()
 	ui.ClearBattleLog()
 	return &Game{
@@ -145,24 +153,11 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		drawResultBar(screen, *g.lastResult)
 	}
 	// --- Player/Enemy行列のビジュアライズ ---
-	g.drawPlayerAndEnemyMatrices(screen, g.player, g.enemy)
-}
-
-// ebitenutil.DrawRectの代替
-func drawRect(screen *ebiten.Image, x, y, w, h float64, clr color.Color) {
-	img := ebiten.NewImage(int(w), int(h))
-	img.Fill(clr)
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(x, y)
-	screen.DrawImage(img, op)
-}
-
-func (g *Game) drawPlayerAndEnemyMatrices(screen *ebiten.Image, player *domain.Player, enemy *domain.Enemy) {
 	startX, startY := 200, 310 // 画面下部のテキストの上
 	if g.player != nil && g.player.MatrixState != nil {
 		mat := g.player.MatrixState
-		cellSize := 24
-		margin := 4
+		cellSize := 18
+		margin := 3
 		for i := 0; i < mat.Rows; i++ {
 			for j := 0; j < mat.Cols; j++ {
 				v := mat.Data[i][j]
@@ -181,8 +176,8 @@ func (g *Game) drawPlayerAndEnemyMatrices(screen *ebiten.Image, player *domain.P
 	startX += 180
 	if g.enemy != nil && g.enemy.MatrixState != nil {
 		mat := g.enemy.MatrixState
-		cellSize := 24
-		margin := 4
+		cellSize := 18
+		margin := 3
 		for i := 0; i < mat.Rows; i++ {
 			for j := 0; j < mat.Cols; j++ {
 				v := mat.Data[i][j]
@@ -198,6 +193,15 @@ func (g *Game) drawPlayerAndEnemyMatrices(screen *ebiten.Image, player *domain.P
 		}
 		ui.DrawText(screen, "Enemy", startX, startY-18)
 	}
+}
+
+// ebitenutil.DrawRectの代替
+func drawRect(screen *ebiten.Image, x, y, w, h float64, clr color.Color) {
+	img := ebiten.NewImage(int(w), int(h))
+	img.Fill(clr)
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(x, y)
+	screen.DrawImage(img, op)
 }
 
 // 結果値をバーでビジュアライズ
@@ -236,13 +240,9 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 
 func (g *Game) Reset() {
 	g.battleCount = 0
-	// プレイヤーの初期行列も有利に再設定
-	pm := domain.NewMatrix(2, 2)
-	pm.Data[0][0] = 2.0
-	pm.Data[1][1] = 2.0
-	g.player = domain.NewPlayer(pm, 0.5)
-	g.enemy = domain.NewEnemy("Enemy", domain.NewMatrix(2, 2), 0.5)
-	g.rule = logic.NewRuleMatrix(g.seed, 2) // seedを再利用
+	g.player.Reset()
+	g.enemy.Reset()
+	g.rule = logic.NewRuleMatrix(g.seed, 3) // seedを再利用
 	g.ui.ClearBattleLog()
 	g.phase = "input"
 	g.lastWin = false

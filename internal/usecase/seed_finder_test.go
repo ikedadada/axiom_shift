@@ -18,8 +18,7 @@ func TestFindValidSeed_Basic(t *testing.T) {
 	}{
 		{"basic", 5, 42, domain.NewMatrix(2, 2), 0.5, domain.NewMatrix(2, 2), 0.5},
 		{"different seed", 5, 99, domain.NewMatrix(2, 2), 0.5, domain.NewMatrix(2, 2), 0.5},
-		// TODO: larger matrix does not work yet
-		// {"larger matrix", 5, 42, domain.NewMatrix(3, 3), 0.5, domain.NewMatrix(3, 3), 0.5},
+		{"larger matrix", 5, 42, domain.NewMatrix(3, 3), 0.5, domain.NewMatrix(3, 3), 0.5},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -30,7 +29,10 @@ func TestFindValidSeed_Basic(t *testing.T) {
 			}
 			player := domain.NewPlayer(pm, tt.playerGr)
 			enemy := domain.NewEnemy("Enemy", tt.enemyMat, tt.enemyGr)
-			seed, rule, playerPath, enemyPath := FindValidSeed(tt.battleMax, tt.initialSeed, player, enemy)
+			seed, rule, playerPath, enemyPath, err := FindValidSeed(tt.battleMax, tt.initialSeed, player, enemy)
+			if err != nil {
+				t.Fatalf("FindValidSeed error: %v", err)
+			}
 			if rule == nil {
 				t.Fatal("rule should not be nil")
 			}
@@ -72,7 +74,7 @@ func TestFindValidSeed_GuardCases(t *testing.T) {
 					t.Errorf("Unexpected panic: %v", r)
 				}
 			}()
-			_, _, _, _ = FindValidSeed(tt.battleMax, tt.seed, tt.player, tt.enemy)
+			_, _, _, _, _ = FindValidSeed(tt.battleMax, tt.seed, tt.player, tt.enemy)
 		})
 	}
 }
@@ -90,7 +92,10 @@ func TestFindValidSeed_EdgeCases(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, rule, playerPath, enemyPath := FindValidSeed(tt.battleMax, tt.seed, tt.player, tt.enemy)
+			_, rule, playerPath, enemyPath, err := FindValidSeed(tt.battleMax, tt.seed, tt.player, tt.enemy)
+			if err != nil {
+				t.Fatalf("FindValidSeed error: %v", err)
+			}
 			if rule == nil {
 				t.Fatal("rule should not be nil")
 			}

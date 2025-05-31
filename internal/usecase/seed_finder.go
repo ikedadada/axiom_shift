@@ -9,17 +9,21 @@ import (
 )
 
 // FindValidSeed: battleMax 回のバトルで双方に勝ちパターンが存在する seed / rule / playerPath / enemyPath を返す
-func FindValidSeed(battleMax int, initialSeed int64, player *domain.Player, enemy *domain.Enemy) (int64, *logic.RuleMatrix, []int, []int) {
+func FindValidSeed(battleMax int, initialSeed int64, player *domain.Player, enemy *domain.Enemy) (int64, *logic.RuleMatrix, []int, []int, error) {
 	if battleMax <= 0 || player == nil || enemy == nil {
 		panic("Invalid parameters: battleMax must be > 0, player and enemy must not be nil")
 	}
-
-	const (
-		roughSamples = 2_000     // 粗い勝率フィルタ
-		deepSamples  = 20_000    // 詳細勝率フィルタ
-		mctsWidth    = 3         // ビーム幅
-		mctsMaxNodes = 1_000_000 // 探索ノード上限
-	)
+	// 行列サイズに応じてパラメータ自動調整
+	size := 2
+	if player.MatrixState != nil && player.MatrixState.Rows > 0 {
+		size = player.MatrixState.Rows
+	}
+	// サンプリング数・ノード数をサイズ依存で調整
+	roughSamples := 50 * size * size
+	deepSamples := 200 * size * size
+	mctsWidth := 3
+	mctsMaxNodes := 1000 * size * size
+	maxTries := 1000
 
 	// Wilson score interval (近似) で勝率信頼区間を求める
 	betaCI := func(wins, n int) (float64, float64) {
@@ -143,17 +147,15 @@ func FindValidSeed(battleMax int, initialSeed int64, player *domain.Player, enem
 
 	rand.Seed(initialSeed)
 	var debugSearchSeedCount int
-
-	for {
+	for try := 0; try < maxTries; try++ {
 		seedCandidate := logic.NewSeedManager().GetSeed()
-		rule := logic.NewRuleMatrix(seedCandidate, 2)
+		rule := logic.NewRuleMatrix(seedCandidate, size)
 
 		// RoughFilter
 		playerWins, n := simulateSamples(rule, roughSamples)
 		low, high := betaCI(playerWins, n)
 		if !(low < 0.99 && high > 0.01) { // ほぼ 0 でも 1 でもない
 			debugSearchSeedCount++
-			fmt.Printf("[Rough] Seed %d rejected (%d試行) CI = (%.3f, %.3f)\n", seedCandidate, n, low, high)
 			continue
 		}
 
@@ -162,7 +164,6 @@ func FindValidSeed(battleMax int, initialSeed int64, player *domain.Player, enem
 		pHat := float64(playerWins) / float64(n)
 		if pHat == 0 || pHat == 1 {
 			debugSearchSeedCount++
-			fmt.Printf("[Deep]  Seed %d rejected (%d試行) p̂ = %.3f\n", seedCandidate, n, pHat)
 			continue
 		}
 
@@ -173,7 +174,7 @@ func FindValidSeed(battleMax int, initialSeed int64, player *domain.Player, enem
 
 		if ok {
 			fmt.Printf("Found valid seed: %d with playerPath=%v, enemyPath=%v\n", seedCandidate, playerPath, enemyPath)
-			return seedCandidate, rule, playerPath, enemyPath
+			return seedCandidate, rule, playerPath, enemyPath, nil
 		}
 
 		// 進行が遅いときのデバッグ用出力（任意）
@@ -181,4 +182,5 @@ func FindValidSeed(battleMax int, initialSeed int64, player *domain.Player, enem
 			fmt.Printf("Tried %d seeds so far, still searching...\n", debugSearchSeedCount)
 		}
 	}
+	return 0, nil, nil, nil, fmt.Errorf("valid seed not found after %d tries", maxTries)
 }
