@@ -139,15 +139,29 @@ func TestMatrixNormalize(t *testing.T) {
 }
 
 func TestMatrixNormalize_GuardClauses(t *testing.T) {
-	var m *Matrix
-	m.Normalize() // nilでもpanicしない
-
-	m = NewMatrix(0, 0)
-	m.Normalize() // 0サイズでもpanicしない
-
-	m = NewMatrix(2, 2)
-	// すべて0の場合（sumSquares==0）
-	m.Normalize() // 何も起こらない
+	tests := []struct {
+		name   string
+		matrix *Matrix
+	}{
+		{"nil matrix", nil},
+		{"zero size", NewMatrix(0, 0)},
+		{"all zero", func() *Matrix { m := NewMatrix(2, 2); return m }()},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Errorf("Normalize() panicked: %v", r)
+				}
+			}()
+			if tt.matrix != nil {
+				tt.matrix.Normalize()
+			} else {
+				var m *Matrix
+				m.Normalize()
+			}
+		})
+	}
 }
 
 func TestMatrix_Copy(t *testing.T) {
@@ -175,14 +189,45 @@ func TestMatrixCopy_GuardClauses(t *testing.T) {
 }
 
 func TestMatrix_sqrt(t *testing.T) {
-	if sqrt(4) != 2 {
-		t.Error("sqrt(4) should be 2")
+	tests := []struct {
+		name  string
+		input float64
+		want  float64
+	}{
+		{"sqrt(4)", 4, 2},
+		{"sqrt(0)", 0, 0},
+		{"sqrt(-1)", -1, 0},
 	}
-	if sqrt(0) != 0 {
-		t.Error("sqrt(0) should be 0")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := sqrt(tt.input); got != tt.want {
+				t.Errorf("sqrt(%v) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
 	}
-	if sqrt(-1) != 0 {
-		t.Error("sqrt(-1) should be 0")
+}
+
+func TestMatrix_equal(t *testing.T) {
+	tests := []struct {
+		name string
+		a, b *Matrix
+		want bool
+	}{
+		{"both nil", nil, nil, true},
+		{"a nil, b not nil", nil, NewMatrix(2, 2), false},
+		{"a not nil, b nil", NewMatrix(2, 2), nil, false},
+		{"different size", NewMatrix(2, 2), NewMatrix(3, 2), false},
+		{"same size, different data", func() *Matrix { m := NewMatrix(2, 2); m.Data[0][0] = 1; return m }(), NewMatrix(2, 2), false},
+		{"same size, same data", func() *Matrix { m := NewMatrix(2, 2); m.Data[0][0] = 1; return m }(), func() *Matrix { m := NewMatrix(2, 2); m.Data[0][0] = 1; return m }(), true},
+		{"zero size", NewMatrix(0, 0), NewMatrix(0, 0), true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := equal(tt.a, tt.b)
+			if got != tt.want {
+				t.Errorf("equal() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
