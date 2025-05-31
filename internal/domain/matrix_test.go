@@ -1,10 +1,10 @@
-package game
+package domain
 
 import "testing"
 
 func TestNewMatrix(t *testing.T) {
 	m := NewMatrix(2, 3)
-	if m.rows != 2 || m.cols != 3 {
+	if m.Rows != 2 || m.Cols != 3 {
 		t.Error("NewMatrix did not set dimensions correctly")
 	}
 }
@@ -12,12 +12,12 @@ func TestNewMatrix(t *testing.T) {
 func TestMatrixMultiply(t *testing.T) {
 	m1 := NewMatrix(2, 2)
 	m2 := NewMatrix(2, 2)
-	m1.data[0][0], m1.data[0][1] = 1, 2
-	m1.data[1][0], m1.data[1][1] = 3, 4
-	m2.data[0][0], m2.data[0][1] = 5, 6
-	m2.data[1][0], m2.data[1][1] = 7, 8
+	m1.Data[0][0], m1.Data[0][1] = 1, 2
+	m1.Data[1][0], m1.Data[1][1] = 3, 4
+	m2.Data[0][0], m2.Data[0][1] = 5, 6
+	m2.Data[1][0], m2.Data[1][1] = 7, 8
 	res := m1.Multiply(m2)
-	if res.data[0][0] != 19 || res.data[0][1] != 22 || res.data[1][0] != 43 || res.data[1][1] != 50 {
+	if res.Data[0][0] != 19 || res.Data[0][1] != 22 || res.Data[1][0] != 43 || res.Data[1][1] != 50 {
 		t.Error("Matrix Multiply failed")
 	}
 }
@@ -33,10 +33,10 @@ func TestMatrixMultiply_ErrorCase(t *testing.T) {
 func TestMatrixSubtract(t *testing.T) {
 	m1 := NewMatrix(2, 2)
 	m2 := NewMatrix(2, 2)
-	m1.data[0][0], m2.data[0][0] = 5, 2
-	m1.data[1][1], m2.data[1][1] = 7, 4
+	m1.Data[0][0], m2.Data[0][0] = 5, 2
+	m1.Data[1][1], m2.Data[1][1] = 7, 4
 	res := m1.Subtract(m2)
-	if res.data[0][0] != 3 || res.data[1][1] != 3 {
+	if res.Data[0][0] != 3 || res.Data[1][1] != 3 {
 		t.Error("Matrix Subtract failed")
 	}
 }
@@ -51,8 +51,8 @@ func TestMatrixSubtract_ErrorCase(t *testing.T) {
 
 func TestMatrixGetScalarValue(t *testing.T) {
 	m := NewMatrix(2, 2)
-	m.data[0][0], m.data[0][1] = 1, 2
-	m.data[1][0], m.data[1][1] = 3, 4
+	m.Data[0][0], m.Data[0][1] = 1, 2
+	m.Data[1][0], m.Data[1][1] = 3, 4
 	if m.GetScalarValue() != 2.5 {
 		t.Errorf("GetScalarValue failed: got %v", m.GetScalarValue())
 	}
@@ -67,13 +67,13 @@ func TestMatrixGetScalarValue_Empty(t *testing.T) {
 
 func TestMatrixNormalize(t *testing.T) {
 	m := NewMatrix(2, 2)
-	m.data[0][0], m.data[0][1] = 3, 4
-	m.data[1][0], m.data[1][1] = 0, 0
+	m.Data[0][0], m.Data[0][1] = 3, 4
+	m.Data[1][0], m.Data[1][1] = 0, 0
 	m.Normalize()
 	norm := 0.0
-	for i := 0; i < m.rows; i++ {
-		for j := 0; j < m.cols; j++ {
-			norm += m.data[i][j] * m.data[i][j]
+	for i := 0; i < m.Rows; i++ {
+		for j := 0; j < m.Cols; j++ {
+			norm += m.Data[i][j] * m.Data[i][j]
 		}
 	}
 	if abs(norm-1.0) > 1e-6 {

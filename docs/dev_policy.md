@@ -4,23 +4,19 @@
 
 - **レイヤードアーキテクチャ**を採用し、依存方向は内向きのみ。
   - `cmd → app → usecase → domain` のみ許可。
-  - `infra`は外側に位置し、interface アダプタとして`usecase`に依存可。
+  - UI や外部 I/O は adapter 層（`ui/`）として usecase に依存可。
 - ディレクトリ構成は以下の通り：
 
 ```
 axiom_shift/
-├── cmd/axiomshift/         # エントリポイント(main.go)
+├── main.go               # エントリポイント
 ├── internal/
-│   ├── app/                # Ebitenゲームループ
-│   ├── domain/             # エンティティ・値オブジェクト
-│   ├── usecase/            # 戦闘進行・ゲームセッション
-│   ├── infra/ebitenui/     # Ebiten描画・入力アダプタ
-│   ├── game/               # ゲームロジック
-│   ├── logic/              # ルール・乱数
-│   └── ui/                 # UIロジック
-├── pkg/                    # 汎用ユーティリティ
-├── assets/                 # フォント・画像等
-├── docs/                   # ドキュメント
+│   ├── domain/           # エンティティ・値オブジェクト・ドメインロジック
+│   ├── usecase/          # アプリケーションユースケース（戦闘進行など）
+│   ├── logic/            # ルール・乱数等の純粋ロジック
+│   └── ui/               # UIロジック・描画・入力
+├── assets/               # フォント・画像等
+├── docs/                 # ドキュメント
 └── README.md
 ```
 

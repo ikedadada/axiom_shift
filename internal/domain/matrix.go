@@ -1,9 +1,10 @@
-package game
+package domain
 
+// Matrix represents a mathematical matrix with basic operations.
 type Matrix struct {
-	data [][]float64
-	rows int
-	cols int
+	Data [][]float64
+	Rows int
+	Cols int
 }
 
 // NewMatrix creates a new Matrix with the given number of rows and columns.
@@ -12,18 +13,18 @@ func NewMatrix(rows, cols int) *Matrix {
 	for i := range data {
 		data[i] = make([]float64, cols)
 	}
-	return &Matrix{data: data, rows: rows, cols: cols}
+	return &Matrix{Data: data, Rows: rows, Cols: cols}
 }
 
 // Subtract performs matrix subtraction with another matrix.
 func (m *Matrix) Subtract(other *Matrix) *Matrix {
-	if m.rows != other.rows || m.cols != other.cols {
-		return nil // or handle error
+	if m.Rows != other.Rows || m.Cols != other.Cols {
+		return nil
 	}
-	result := NewMatrix(m.rows, m.cols)
-	for i := 0; i < m.rows; i++ {
-		for j := 0; j < m.cols; j++ {
-			result.data[i][j] = m.data[i][j] - other.data[i][j]
+	result := NewMatrix(m.Rows, m.Cols)
+	for i := 0; i < m.Rows; i++ {
+		for j := 0; j < m.Cols; j++ {
+			result.Data[i][j] = m.Data[i][j] - other.Data[i][j]
 		}
 	}
 	return result
@@ -31,14 +32,14 @@ func (m *Matrix) Subtract(other *Matrix) *Matrix {
 
 // Multiply performs matrix multiplication with another matrix.
 func (m *Matrix) Multiply(other *Matrix) *Matrix {
-	if m.cols != other.rows {
-		return nil // or handle error
+	if m.Cols != other.Rows {
+		return nil
 	}
-	result := NewMatrix(m.rows, other.cols)
-	for i := 0; i < m.rows; i++ {
-		for j := 0; j < other.cols; j++ {
-			for k := 0; k < m.cols; k++ {
-				result.data[i][j] += m.data[i][k] * other.data[k][j]
+	result := NewMatrix(m.Rows, other.Cols)
+	for i := 0; i < m.Rows; i++ {
+		for j := 0; j < other.Cols; j++ {
+			for k := 0; k < m.Cols; k++ {
+				result.Data[i][j] += m.Data[i][k] * other.Data[k][j]
 			}
 		}
 	}
@@ -49,9 +50,9 @@ func (m *Matrix) Multiply(other *Matrix) *Matrix {
 func (m *Matrix) GetScalarValue() float64 {
 	sum := 0.0
 	count := 0
-	for i := 0; i < m.rows; i++ {
-		for j := 0; j < m.cols; j++ {
-			sum += m.data[i][j]
+	for i := 0; i < m.Rows; i++ {
+		for j := 0; j < m.Cols; j++ {
+			sum += m.Data[i][j]
 			count++
 		}
 	}
@@ -64,25 +65,24 @@ func (m *Matrix) GetScalarValue() float64 {
 // Normalize normalizes the matrix so that its L2 norm becomes 1 (unless norm is 0).
 func (m *Matrix) Normalize() {
 	sumSquares := 0.0
-	for i := 0; i < m.rows; i++ {
-		for j := 0; j < m.cols; j++ {
-			sumSquares += m.data[i][j] * m.data[i][j]
+	for i := 0; i < m.Rows; i++ {
+		for j := 0; j < m.Cols; j++ {
+			sumSquares += m.Data[i][j] * m.Data[i][j]
 		}
 	}
 	if sumSquares == 0 {
 		return
 	}
 	norm := sqrt(sumSquares)
-	for i := 0; i < m.rows; i++ {
-		for j := 0; j < m.cols; j++ {
-			m.data[i][j] /= norm
+	for i := 0; i < m.Rows; i++ {
+		for j := 0; j < m.Cols; j++ {
+			m.Data[i][j] /= norm
 		}
 	}
 }
 
 // sqrt is a helper for square root (for normalization)
 func sqrt(x float64) float64 {
-	// Use Newton's method for simplicity
 	if x == 0 {
 		return 0
 	}

@@ -1,8 +1,10 @@
 package game
 
 import (
+	"axiom_shift/internal/domain"
 	"axiom_shift/internal/logic"
 	"axiom_shift/internal/ui"
+	"axiom_shift/internal/usecase"
 	"fmt"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -11,8 +13,8 @@ import (
 type Game struct {
 	battleCount int
 	battleMax   int
-	player      *Character
-	enemy       *Enemy
+	player      *domain.Player
+	enemy       *domain.Enemy
 	rule        *logic.RuleMatrix
 	ui          UIInterface
 	inputValue  float64
@@ -26,9 +28,14 @@ type UIInterface interface {
 	Draw(screen *ebiten.Image)
 }
 
+func logicToDomainRuleMatrix(lr *logic.RuleMatrix) *domain.RuleMatrix {
+	mat := lr.GetMatrix()
+	return &domain.RuleMatrix{Matrix: mat}
+}
+
 func NewGame() *Game {
-	player := NewCharacter(NewMatrix(2, 2), 0.5)
-	enemy := NewEnemy("Enemy", NewMatrix(2, 2), 0.5)
+	player := domain.NewPlayer(domain.NewMatrix(2, 2), 0.5)
+	enemy := domain.NewEnemy("Enemy", domain.NewMatrix(2, 2), 0.5)
 	rule := logic.NewRuleMatrix(42, 2)
 	ui := ui.NewUI()
 	ui.ClearBattleLog() // ゲーム開始時にログをクリア（ClearBattleLogの活用）
@@ -66,7 +73,7 @@ func (g *Game) Update() error {
 	case "battle":
 		// バトル回数に応じて成長率を増加
 		g.player.GrowthRate = 0.5 + 0.1*float64(g.battleCount)
-		service := NewBattleService(g.player, g.enemy, g.rule)
+		service := usecase.NewBattleService(g.player, g.enemy, logicToDomainRuleMatrix(g.rule))
 		result, win := service.ExecuteBattle(g.inputValue)
 		g.battleCount++
 		log := fmt.Sprintf("Battle %d: Input=%s Result=%s Win/Lose=%s", g.battleCount, formatFloat(g.inputValue), formatFloat(result), winLoseStrEN(win))
@@ -74,13 +81,18 @@ func (g *Game) Update() error {
 		// プレイヤーが勝った場合のみ敵が成長
 		if win {
 			ruleMatrix := g.rule.GetMatrix()
-			m := &Matrix{data: ruleMatrix, rows: len(ruleMatrix), cols: len(ruleMatrix[0])}
+			m := domain.NewMatrix(len(ruleMatrix), len(ruleMatrix[0]))
+			for i := range ruleMatrix {
+				for j := range ruleMatrix[i] {
+					m.Data[i][j] = ruleMatrix[i][j]
+				}
+			}
 			// 敵がプレイヤーに勝てるまで最大10回Grow
 			maxTry := 10
 			for i := 0; i < maxTry; i++ {
 				g.enemy.Grow(g.inputValue, m)
 				// 成長後に再度バトル判定
-				serviceTmp := NewBattleService(g.player, g.enemy, g.rule)
+				serviceTmp := usecase.NewBattleService(g.player, g.enemy, logicToDomainRuleMatrix(g.rule))
 				_, winTmp := serviceTmp.ExecuteBattle(g.inputValue)
 				if winTmp {
 					continue // まだ勝てない→さらにGrow
@@ -143,8 +155,8 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 
 func (g *Game) Reset() {
 	g.battleCount = 0
-	g.player = NewCharacter(NewMatrix(2, 2), 0.5)
-	g.enemy = NewEnemy("Enemy", NewMatrix(2, 2), 0.5)
+	g.player = domain.NewPlayer(domain.NewMatrix(2, 2), 0.5)
+	g.enemy = domain.NewEnemy("Enemy", domain.NewMatrix(2, 2), 0.5)
 	// ルール行列は同じものを再利用
 	g.ui.ClearBattleLog()
 	g.phase = "input"
