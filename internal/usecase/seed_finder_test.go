@@ -8,17 +8,16 @@ import (
 
 func TestFindValidSeed_Basic(t *testing.T) {
 	tests := []struct {
-		name        string
-		battleMax   int
-		initialSeed int64
-		playerMat   [][]float64
-		playerGr    float64
-		enemyMat    [][]float64
-		enemyGr     float64
+		name      string
+		battleMax int
+		playerMat [][]float64
+		playerGr  float64
+		enemyMat  [][]float64
+		enemyGr   float64
 	}{
-		{"basic", 5, 42, [][]float64{{0, 0}, {0, 0}}, 0.5, [][]float64{{0, 0}, {0, 0}}, 0.5},
-		{"different seed", 5, 99, [][]float64{{0, 0}, {0, 0}}, 0.5, [][]float64{{0, 0}, {0, 0}}, 0.5},
-		{"larger matrix", 5, 42, [][]float64{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, 0.5, [][]float64{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, 0.5},
+		{"basic", 5, [][]float64{{0, 0}, {0, 0}}, 0.5, [][]float64{{0, 0}, {0, 0}}, 0.5},
+		{"different seed", 5, [][]float64{{0, 0}, {0, 0}}, 0.5, [][]float64{{0, 0}, {0, 0}}, 0.5},
+		{"larger matrix", 5, [][]float64{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, 0.5, [][]float64{{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, 0.5},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -31,7 +30,7 @@ func TestFindValidSeed_Basic(t *testing.T) {
 			}
 			player := domain.NewPlayer(pm, tt.playerGr)
 			enemy := domain.NewEnemy("Enemy", domain.NewMatrix(tt.enemyMat), tt.enemyGr)
-			seed, playerPath, enemyPath, err := FindValidSeed(tt.battleMax, tt.initialSeed, player, enemy)
+			seed, playerPath, enemyPath, err := FindValidSeed(tt.battleMax, player, enemy)
 			if err != nil {
 				t.Fatalf("FindValidSeed error: %v", err)
 			}
@@ -54,12 +53,11 @@ func TestFindValidSeed_GuardCases(t *testing.T) {
 		battleMax int
 		player    *domain.Player
 		enemy     *domain.Enemy
-		seed      int64
 		wantPanic bool
 	}{
-		{"zero battleMax", 0, domain.NewPlayer(domain.NewMatrix([][]float64{{0, 0}, {0, 0}}), 0.5), domain.NewEnemy("E", domain.NewMatrix([][]float64{{0, 0}, {0, 0}}), 0.5), 42, true},
-		{"nil player", 5, nil, domain.NewEnemy("E", domain.NewMatrix([][]float64{{0, 0}, {0, 0}}), 0.5), 42, true},
-		{"nil enemy", 5, domain.NewPlayer(domain.NewMatrix([][]float64{{0, 0}, {0, 0}}), 0.5), nil, 42, true},
+		{"zero battleMax", 0, domain.NewPlayer(domain.NewMatrix([][]float64{{0, 0}, {0, 0}}), 0.5), domain.NewEnemy("E", domain.NewMatrix([][]float64{{0, 0}, {0, 0}}), 0.5), true},
+		{"nil player", 5, nil, domain.NewEnemy("E", domain.NewMatrix([][]float64{{0, 0}, {0, 0}}), 0.5), true},
+		{"nil enemy", 5, domain.NewPlayer(domain.NewMatrix([][]float64{{0, 0}, {0, 0}}), 0.5), nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -72,7 +70,7 @@ func TestFindValidSeed_GuardCases(t *testing.T) {
 					t.Errorf("Unexpected panic: %v", r)
 				}
 			}()
-			_, _, _, _ = FindValidSeed(tt.battleMax, tt.seed, tt.player, tt.enemy)
+			_, _, _, _ = FindValidSeed(tt.battleMax, tt.player, tt.enemy)
 		})
 	}
 }
@@ -81,16 +79,15 @@ func TestFindValidSeed_EdgeCases(t *testing.T) {
 	tests := []struct {
 		name      string
 		battleMax int
-		seed      int64
 		player    *domain.Player
 		enemy     *domain.Enemy
 	}{
-		{"battleMax 1", 1, 1, domain.NewPlayer(domain.NewMatrix([][]float64{{0, 0}, {0, 0}}), 0.5), domain.NewEnemy("E", domain.NewMatrix([][]float64{{0, 0}, {0, 0}}), 0.5)},
-		{"large battleMax", 6, 42, domain.NewPlayer(domain.NewMatrix([][]float64{{0, 0}, {0, 0}}), 0.5), domain.NewEnemy("E", domain.NewMatrix([][]float64{{0, 0}, {0, 0}}), 0.5)},
+		{"battleMax 1", 1, domain.NewPlayer(domain.NewMatrix([][]float64{{0, 0}, {0, 0}}), 0.5), domain.NewEnemy("E", domain.NewMatrix([][]float64{{0, 0}, {0, 0}}), 0.5)},
+		{"large battleMax", 6, domain.NewPlayer(domain.NewMatrix([][]float64{{0, 0}, {0, 0}}), 0.5), domain.NewEnemy("E", domain.NewMatrix([][]float64{{0, 0}, {0, 0}}), 0.5)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, playerPath, enemyPath, err := FindValidSeed(tt.battleMax, tt.seed, tt.player, tt.enemy)
+			_, playerPath, enemyPath, err := FindValidSeed(tt.battleMax, tt.player, tt.enemy)
 			if err != nil {
 				t.Fatalf("FindValidSeed error: %v", err)
 			}

@@ -9,7 +9,7 @@ import (
 )
 
 // FindValidSeed: battleMax 回のバトルで双方に勝ちパターンが存在する seed / rule / playerPath / enemyPath を返す
-func FindValidSeed(battleMax int, initialSeed int64, player *domain.Player, enemy *domain.Enemy) (int64, []int, []int, error) {
+func FindValidSeed(battleMax int, player *domain.Player, enemy *domain.Enemy) (int64, []int, []int, error) {
 	if battleMax <= 0 || player == nil || enemy == nil {
 		panic("Invalid parameters: battleMax must be > 0, player and enemy must not be nil")
 	}
@@ -144,8 +144,6 @@ func FindValidSeed(battleMax int, initialSeed int64, player *domain.Player, enem
 	}
 
 	// ——— メインループ ————————————————————————————
-
-	rand.Seed(initialSeed)
 	var debugSearchSeedCount int
 	for try := 0; try < maxTries; try++ {
 		seedCandidate := logic.NewSeedManager().GetSeed()

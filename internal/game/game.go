@@ -6,7 +6,6 @@ import (
 	"axiom_shift/internal/usecase"
 	"fmt"
 	"image/color"
-	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -43,8 +42,7 @@ func NewGame() *Game {
 		{2.0, 0.0, 0.0},
 	}), 0.5)
 	battleMax := 10
-	initialSeed := time.Now().UnixNano()
-	seed, playerPath, enemyPath, err := usecase.FindValidSeed(battleMax, initialSeed, player, enemy)
+	seed, playerPath, enemyPath, err := usecase.FindValidSeed(battleMax, player, enemy)
 	if err != nil {
 		panic(fmt.Sprintf("Seed search failed: %v", err))
 	}
