@@ -19,7 +19,7 @@ type Game struct {
 	enemy       *domain.Enemy
 	rule        *logic.RuleMatrix
 	ui          UIInterface
-	inputValue  float64
+	inputValue  int
 	phase       string   // "input", "confirm", "battle", "end"
 	lastWin     bool     // 最終戦の勝敗記録
 	seed        int64    // ルール生成用シード値
@@ -39,8 +39,8 @@ func logicToDomainRuleMatrix(lr *logic.RuleMatrix) *domain.RuleMatrix {
 
 func NewGame() *Game {
 	pm := domain.NewMatrix(2, 2)
-	pm.Data[0][0] = 2.0
-	pm.Data[1][1] = 2.0
+	pm.Data[0][0] = 1.0
+	pm.Data[1][1] = 1.0
 	player := domain.NewPlayer(pm, 0.5)
 	enemy := domain.NewEnemy("Enemy", domain.NewMatrix(2, 2), 0.5)
 	battleMax := 10
@@ -72,7 +72,7 @@ func (g *Game) Update() error {
 		// キー入力受付: 0-9キーで0.0-1.0にマッピング
 		for i := 0; i <= 9; i++ {
 			if ebiten.IsKeyPressed(ebiten.Key0 + ebiten.Key(i)) {
-				g.inputValue = float64(i) / 9.0
+				g.inputValue = i
 				g.phase = "confirm"
 				break
 			}
@@ -86,10 +86,10 @@ func (g *Game) Update() error {
 		}
 	case "battle":
 		service := usecase.NewBattleService(g.player, g.enemy, logicToDomainRuleMatrix(g.rule))
-		result, win := service.DoBattleTurn(g.inputValue, g.battleCount)
+		result, win := service.DoBattleTurn(float64(g.inputValue)/9, g.battleCount)
 		g.lastResult = &result
 		g.battleCount++
-		log := fmt.Sprintf("Battle %d: Input=%s Result=%s Win/Lose=%s", g.battleCount, formatFloat(g.inputValue), formatFloat(result), winLoseStrEN(win))
+		log := fmt.Sprintf("Battle %d: Input=%d Result=%s Win/Lose=%s", g.battleCount, g.inputValue, formatFloat(result), winLoseStrEN(win))
 		g.ui.AddBattleLog(log)
 		if g.battleCount >= g.battleMax {
 			g.phase = "end"
@@ -121,10 +121,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	case "input":
 		g.ui.Draw(screen)
 		// 指示文を画面下部に表示
-		ui.DrawText(screen, "Press 0-9 to input (0.0-1.0)", 10, 460)
+		ui.DrawText(screen, "Press 0-9 to input", 10, 460)
 	case "confirm":
 		g.ui.Draw(screen)
-		msg := fmt.Sprintf("Input: %s  [Enter: OK / Backspace: Re-input]", formatFloat(g.inputValue))
+		msg := fmt.Sprintf("Input: %d  [Enter: OK / Backspace: Re-input]", g.inputValue)
 		ui.DrawText(screen, msg, 10, 460)
 	case "battle":
 		g.ui.Draw(screen)
@@ -139,11 +139,13 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 	// 画面右下にSeed値を表示
 	seedMsg := fmt.Sprintf("Seed: %d", g.seed)
-	ui.DrawText(screen, seedMsg, 540, 460)
+	ui.DrawText(screen, seedMsg, 485, 460)
 	// 画面中央下にResultバーを描画
 	if g.lastResult != nil {
 		drawResultBar(screen, *g.lastResult)
 	}
+	// --- Player/Enemy行列のビジュアライズ ---
+	g.drawPlayerAndEnemyMatrices(screen, g.player, g.enemy)
 }
 
 // ebitenutil.DrawRectの代替
@@ -153,6 +155,49 @@ func drawRect(screen *ebiten.Image, x, y, w, h float64, clr color.Color) {
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(x, y)
 	screen.DrawImage(img, op)
+}
+
+func (g *Game) drawPlayerAndEnemyMatrices(screen *ebiten.Image, player *domain.Player, enemy *domain.Enemy) {
+	startX, startY := 200, 310 // 画面下部のテキストの上
+	if g.player != nil && g.player.MatrixState != nil {
+		mat := g.player.MatrixState
+		cellSize := 24
+		margin := 4
+		for i := 0; i < mat.Rows; i++ {
+			for j := 0; j < mat.Cols; j++ {
+				v := mat.Data[i][j]
+				if v < 0 {
+					v = 0
+				}
+				if v > 1 {
+					v = 1
+				}
+				clr := color.RGBA{0, 0, uint8(64 + 191*v), 255} // 青の濃さ
+				drawRect(screen, float64(startX+j*(cellSize+margin)), float64(startY+i*(cellSize+margin)), float64(cellSize), float64(cellSize), clr)
+			}
+		}
+		ui.DrawText(screen, "Player", startX, startY-18)
+	}
+	startX += 180
+	if g.enemy != nil && g.enemy.MatrixState != nil {
+		mat := g.enemy.MatrixState
+		cellSize := 24
+		margin := 4
+		for i := 0; i < mat.Rows; i++ {
+			for j := 0; j < mat.Cols; j++ {
+				v := mat.Data[i][j]
+				if v < 0 {
+					v = 0
+				}
+				if v > 1 {
+					v = 1
+				}
+				clr := color.RGBA{uint8(64 + 191*v), 0, 0, 255} // 赤の濃さ
+				drawRect(screen, float64(startX+j*(cellSize+margin)), float64(startY+i*(cellSize+margin)), float64(cellSize), float64(cellSize), clr)
+			}
+		}
+		ui.DrawText(screen, "Enemy", startX, startY-18)
+	}
 }
 
 // 結果値をバーでビジュアライズ
