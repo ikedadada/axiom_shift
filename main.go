@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 
@@ -9,7 +10,8 @@ import (
 )
 
 func main() {
-	g := game.NewGame()
+	seed := time.Now().UnixNano()
+	g := game.NewGame(seed)
 	ebiten.SetWindowSize(640, 480)
 	ebiten.SetWindowTitle("Axiom Shift")
 	if err := ebiten.RunGame(g); err != nil {

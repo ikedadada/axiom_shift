@@ -20,6 +20,7 @@ type Game struct {
 	inputValue  float64
 	phase       string // "input", "confirm", "battle", "end"
 	lastWin     bool   // 最終戦の勝敗記録
+	seed        int64  // ルール生成用シード値
 }
 
 type UIInterface interface {
@@ -33,21 +34,27 @@ func logicToDomainRuleMatrix(lr *logic.RuleMatrix) *domain.RuleMatrix {
 	return &domain.RuleMatrix{Matrix: mat}
 }
 
-func NewGame() *Game {
-	player := domain.NewPlayer(domain.NewMatrix(2, 2), 0.5)
+func NewGame(seed int64) *Game {
+	// プレイヤーの初期行列を有利に設定（対角成分を大きく）
+	pm := domain.NewMatrix(2, 2)
+	pm.Data[0][0] = 2.0
+	pm.Data[1][1] = 2.0
+	player := domain.NewPlayer(pm, 0.5)
+	// 敵は従来通り
 	enemy := domain.NewEnemy("Enemy", domain.NewMatrix(2, 2), 0.5)
-	rule := logic.NewRuleMatrix(42, 2)
+	rule := logic.NewRuleMatrix(seed, 2)
 	ui := ui.NewUI()
-	ui.ClearBattleLog() // ゲーム開始時にログをクリア（ClearBattleLogの活用）
+	ui.ClearBattleLog()
 	return &Game{
 		battleCount: 0,
-		battleMax:   10, // バトル回数を10回に変更
+		battleMax:   10,
 		player:      player,
 		enemy:       enemy,
 		rule:        rule,
 		ui:          ui,
 		phase:       "input",
 		lastWin:     false,
+		seed:        seed,
 	}
 }
 
@@ -148,8 +155,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		}
 	}
 	// 画面右下にSeed値を表示
-	seed := 42 // 現状は固定値。将来可変化する場合はGame構造体に持たせる
-	seedMsg := fmt.Sprintf("Seed: %d", seed)
+	seedMsg := fmt.Sprintf("Seed: %d", g.seed)
 	ui.DrawText(screen, seedMsg, 540, 460)
 }
 
@@ -159,9 +165,13 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 
 func (g *Game) Reset() {
 	g.battleCount = 0
-	g.player = domain.NewPlayer(domain.NewMatrix(2, 2), 0.5)
+	// プレイヤーの初期行列も有利に再設定
+	pm := domain.NewMatrix(2, 2)
+	pm.Data[0][0] = 2.0
+	pm.Data[1][1] = 2.0
+	g.player = domain.NewPlayer(pm, 0.5)
 	g.enemy = domain.NewEnemy("Enemy", domain.NewMatrix(2, 2), 0.5)
-	// ルール行列は同じものを再利用
+	g.rule = logic.NewRuleMatrix(g.seed, 2) // seedを再利用
 	g.ui.ClearBattleLog()
 	g.phase = "input"
 	g.lastWin = false
